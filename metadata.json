@@ -1,0 +1,6 @@
+
+{
+  "name": "교과서 압축기",
+  "description": "교과서 범위를 입력하면 AI가 핵심 내용을 요약하고 추가 질문에 답변해주는 시험 대비 학습 도우미입니다.",
+  "requestFramePermissions": []
+}
