@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Sparkles, Loader2, ArrowRight, ExternalLink, GraduationCap, Send, MessageCircle, Building2, RotateCcw, CheckCircle2, Image as ImageIcon, Calendar, BadgeCheck, Globe, List, Hash } from 'lucide-react';
-import { getStudyGuide, createStudyChat, checkCompatibility } from './services/geminiService';
+import { getStudyGuide, createStudyChat } from './services/geminiService';
 import { SearchResult } from './types';
 import { Chat } from '@google/genai';
 
@@ -16,8 +16,8 @@ const PUBLISHERS_15 = [
 
 const App: React.FC = () => {
   const [subject, setSubject] = useState('');
-  const [mainUnit, setMainUnit] = useState(''); 
-  const [subUnit, setSubUnit] = useState('');   
+  const [mainUnit, setMainUnit] = useState('');
+  const [subUnit, setSubUnit] = useState('');
   const [semester, setSemester] = useState('');
   const [schoolLevel, setSchoolLevel] = useState('중학교');
   const [grade, setGrade] = useState('1학년');
@@ -51,7 +51,7 @@ const App: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (result) return;
-    
+
     if (!mainUnit.trim() || !selectedPublisher.trim() || !subject.trim()) {
       setError('필수 항목(출판사, 과목, 대단원)을 입력해주세요.');
       return;
@@ -62,22 +62,20 @@ const App: React.FC = () => {
     setResult(null);
 
     try {
-      const isValid = await checkCompatibility(schoolLevel, grade, subject, selectedPublisher);
-      
-      if (!isValid) {
-        setError('출판사에 맞지 않는 과목입니다. 다시 입력해주세요.');
-        setLoading(false);
-        return;
-      }
-
       const unitInfo = `대단원: ${mainUnit}${subUnit ? `, 소단원: ${subUnit}` : ''}${semester ? ` (${semester})` : ''}`;
       const data = await getStudyGuide(subject, unitInfo, schoolLevel, grade, selectedPublisher);
       setResult(data);
       const chat = createStudyChat(JSON.stringify(data));
       setChatSession(chat);
       setChatMessages([]);
-    } catch (err) {
-      setError('정보를 불러오는데 실패했습니다. 단원 명칭을 더 정확하게 입력해 보세요.');
+    } catch (err: any) {
+      if (err.message === 'RATE_LIMIT_EXCEEDED') {
+        setError('현재 서비스 이용자가 많아 API 할당량이 일시적으로 소모되었습니다. 약 1분 후 다시 시도해 주세요.');
+      } else if (err.message === 'NOT_FOUND') {
+        setError('입력하신 정보에 해당하는 교과서를 찾을 수 없습니다. 출판사와 과목명을 다시 확인해 주세요.');
+      } else {
+        setError('정보를 불러오는데 실패했습니다. 단원 명칭을 더 정확하게 입력해 보세요.');
+      }
     } finally {
       setLoading(false);
     }
@@ -147,9 +145,8 @@ const App: React.FC = () => {
                       type="button"
                       disabled={loading || !!result}
                       onClick={() => setSchoolLevel(level)}
-                      className={`flex-1 py-3 px-3 text-sm font-bold rounded-lg transition-all ${
-                        schoolLevel === level ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
-                      } disabled:opacity-70`}
+                      className={`flex-1 py-3 px-3 text-sm font-bold rounded-lg transition-all ${schoolLevel === level ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                        } disabled:opacity-70`}
                     >
                       <span>{level}</span>
                     </button>
@@ -162,9 +159,8 @@ const App: React.FC = () => {
                       type="button"
                       disabled={loading || !!result}
                       onClick={() => setGrade(g)}
-                      className={`flex-1 py-3 px-2 text-sm font-bold rounded-lg transition-all ${
-                        grade === g ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
-                      } disabled:opacity-70`}
+                      className={`flex-1 py-3 px-2 text-sm font-bold rounded-lg transition-all ${grade === g ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                        } disabled:opacity-70`}
                     >
                       <span>{g}</span>
                     </button>
@@ -194,11 +190,10 @@ const App: React.FC = () => {
                         key={pub}
                         type="button"
                         onClick={() => setSelectedPublisher(pub)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                          selectedPublisher === pub
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${selectedPublisher === pub
                             ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                             : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
-                        }`}
+                          }`}
                       >
                         {pub}
                       </button>
@@ -275,11 +270,10 @@ const App: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading || !!result}
-                className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg ${
-                  !!result 
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none' 
+                className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg ${!!result
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
                     : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-300'
-                }`}
+                  }`}
               >
                 {loading ? (
                   <>
@@ -365,7 +359,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="space-y-20">
                 {result.sections.map((section, idx) => (
                   <div key={idx} className="space-y-8 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${idx * 150}ms` }}>
@@ -378,10 +372,10 @@ const App: React.FC = () => {
 
                     {section.imageUrl ? (
                       <div className="my-10 rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-100 ring-1 ring-slate-200 transition-transform hover:scale-[1.01] duration-500 group">
-                        <img 
-                          src={section.imageUrl} 
-                          alt={section.title} 
-                          className="w-full h-auto min-h-[200px] object-cover" 
+                        <img
+                          src={section.imageUrl}
+                          alt={section.title}
+                          className="w-full h-auto min-h-[200px] object-cover"
                         />
                         <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                           <div className="flex items-center gap-2">
@@ -402,8 +396,8 @@ const App: React.FC = () => {
                       {section.parts.map((sentence, sIdx) => (
                         <p key={sIdx} className="leading-[2.4] break-keep text-lg text-slate-700 font-medium">
                           {sentence.map((part, pIdx) => (
-                            <span 
-                              key={pIdx} 
+                            <span
+                              key={pIdx}
                               className={part.isImportant ? 'text-xl font-black text-slate-950 mx-0.5 px-1 rounded bg-blue-50 border-b-2 border-blue-400 shadow-sm' : ''}
                             >
                               {part.text}
@@ -463,16 +457,15 @@ const App: React.FC = () => {
                 {chatMessages.length === 0 && (
                   <div className="text-center text-slate-400 my-auto px-10">
                     <ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    정리된 그림의 세부 사항이나 이해가 안 가는 개념을 물어보세요.<br/>AI 튜터가 친절하게 설명해 드립니다.
+                    정리된 그림의 세부 사항이나 이해가 안 가는 개념을 물어보세요.<br />AI 튜터가 친절하게 설명해 드립니다.
                   </div>
                 )}
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-5 py-4 text-base shadow-sm ${
-                      msg.role === 'user' 
-                      ? 'bg-blue-600 text-white rounded-tr-none' 
-                      : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none whitespace-pre-wrap leading-relaxed'
-                    }`}>
+                    <div className={`max-w-[80%] rounded-2xl px-5 py-4 text-base shadow-sm ${msg.role === 'user'
+                        ? 'bg-blue-600 text-white rounded-tr-none'
+                        : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none whitespace-pre-wrap leading-relaxed'
+                      }`}>
                       {msg.text}
                     </div>
                   </div>
@@ -516,7 +509,7 @@ const App: React.FC = () => {
       <footer className="w-full bg-slate-100 py-12 border-t border-slate-200 mt-auto">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-slate-400 text-sm tracking-wide">
-            © 2024 AI Visual Textbook Summarizer. Powered by Gemini 3.0. 
+            © 2024 AI Visual Textbook Summarizer. Powered by Gemini 3.0.
             <strong>15개정 교육과정</strong> 완벽 지원.
           </p>
         </div>
