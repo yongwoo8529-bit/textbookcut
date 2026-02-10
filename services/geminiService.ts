@@ -1,6 +1,6 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { SearchResult, StudySection } from "../types";
+import { supabase } from "../lib/supabase";
 
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || process.env.API_KEY || '').trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
@@ -9,7 +9,7 @@ const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 /**
- * 학습 가이드 생성 (Groq API 사용) - 2022 개정 교육과정 기준
+ * 학습 가이드 생성 (Groq API 사용) - RAG (Supabase DB) 기반
  */
 export const getStudyGuide = async (
   subject: string,
@@ -20,13 +20,39 @@ export const getStudyGuide = async (
 ): Promise<SearchResult> => {
   const studentLevel = `${schoolLevel} ${grade}`;
 
+  // 1. DB에서 실제 교과서 원문 데이터 조회 (RAG)
+  let textbookContext = "";
+  try {
+    const { data: chunks, error: dbError } = await supabase
+      .from('content_chunks')
+      .select(`
+        raw_text, 
+        page_number, 
+        units!inner(
+          main_unit_name, 
+          textbooks!inner(publisher, grade, subject)
+        )
+      `)
+      .eq('units.textbooks.publisher', publisher)
+      .eq('units.textbooks.grade', grade)
+      .eq('units.textbooks.subject', subject);
+
+    if (chunks && chunks.length > 0) {
+      textbookContext = chunks.map(c => `[p.${c.page_number}] ${c.raw_text}`).join('\n');
+      console.log(`DB에서 ${chunks.length}개의 교과서 텍스트 조각을 로드했습니다.`);
+    }
+  } catch (err) {
+    console.warn("DB 원문 조회 실패 (일반 지식으로 진행):", err);
+  }
+
   const systemPrompt = `
     [핵심 매핑 및 사실 확인 지시사항]
     1. **영역별 전문성 발휘**: 당신은 **물리, 화학, 생명과학, 지구과학** 등 과학의 모든 영역을 **2015 개정 교육과정(15개정)** 수준에서 완벽히 마스터한 전문가입니다. 절대 2022 개정 교육과정(22개정)과 혼동하지 마십시오.
-    2. **대단원 중심 정밀 매핑**: 사용자가 입력한 학습 범위가 숫자(예: 1, 2)나 "1단원"과 같은 형식일 경우, 이는 반드시 **2015 개정 교육과정 교과서의 '대단원(Major Unit)'**을 의미합니다. 해당 숫자에 해당하는 대단원 전체의 학습 내용과 모든 하위 소단원 개념을 완벽하게 인출하십시오.
-    3. **과목 도메인 엄격 구분**: 입력된 대단원이 물리, 화학, 생명과학, 지구과학 중 어느 영역에 속하는지 15개정 표준 목차를 기준으로 즉시 확정하십시오.
-    4. **내용 일치성 보장**: 15개정 교과서의 대단원별 실제 성취기준과 심도(Depth)를 그대로 재현하여, 해당 대단원 전체를 아우르는 방대한 데이터를 생성하십시오.
-    5. **데이터 무결성**: 일반 상식이 아닌, 반드시 **2015 개정 교육과정 성취기준**에 명시된 범위 내에서만 내용을 생성하십시오.
+    2. **데이터 우선주의**: 만약 하단에 [교과서 원문 데이터]가 제공된다면, 당신의 일반 지식보다 **해당 원문에 적힌 내용을 최우선으로 신뢰**하여 분석하십시오. 원문에 있는 실험, 도표, 세부 설명을 하나도 누락하지 마십시오.
+    3. **대단원 중심 정밀 매핑**: 사용자가 입력한 학습 범위가 숫자(예: 1, 2)나 "1단원"과 같은 형식일 경우, 이는 반드시 **2015 개정 교육과정 교과서의 '대단원(Major Unit)'**을 의미합니다. 해당 숫자에 해당하는 대단원 전체의 학습 내용과 모든 하위 소단원 개념을 완벽하게 인출하십시오.
+    4. **과목 도메인 엄격 구분**: 입력된 대단원이 물리, 화학, 생명과학, 지구과학 중 어느 영역에 속하는지 15개정 표준 목차를 기준으로 즉시 확정하십시오.
+    5. **내용 일치성 보장**: 15개정 교과서의 대단원별 실제 성취기준과 심도(Depth)를 그대로 재현하여, 해당 대단원 전체를 아우르는 방대한 데이터를 생성하십시오.
+    6. **데이터 무결성**: 일반 상식이 아닌, 반드시 **2015 개정 교육과정 성취기준**에 명시된 범위 내에서만 내용을 생성하십시오.
     
     [분석 및 요약 지시사항]
     1. **이중 분석 전략 (전수 조사 + 시험 적중)**: 입력된 대단원의 **모든 개념을 샅샅이** 다루면서도, 동시에 **실제 시험에 출제될 확률이 높은 핵심 포인트**를 날카롭게 집어내십시오.
@@ -40,6 +66,11 @@ export const getStudyGuide = async (
   const userPrompt = `
     [${studentLevel}] [${subject}] [${range}] 범위를 **전수 조사 방식으로 모든 개념을 샅샅이** 정리해줘. (2015 개정 교육과정 기준)
     
+    ${textbookContext ? `
+    [교과서 원문 데이터 - 이 내용을 최우선으로 반영할 것]
+    ${textbookContext}
+    ` : ''}
+
     응답 지침:
     - 소단원에 존재하는 **모든 개념, 정의, 원리**를 누락 없이 섹션으로 나눌 것.
     - 각 섹션의 첫 문장에 핵심 결론을 넣고(isImportant: true), 그 뒤에 **교과서 원문보다 더 상세한 해설을 5문장 이상** 덧붙일 것.
