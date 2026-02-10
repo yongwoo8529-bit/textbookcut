@@ -51,8 +51,16 @@ const App: React.FC = () => {
     e.preventDefault();
     if (result) return;
 
-    if (!mainUnit.trim() || !selectedPublisher.trim() || !subject.trim()) {
-      setError('필수 항목(출판사, 과목, 대단원)을 입력해주세요.');
+    if (!selectedPublisher.trim()) {
+      setError('출판사를 선택하거나 직접 입력해주세요.');
+      return;
+    }
+    if (!subject.trim()) {
+      setError('과목명을 입력해주세요.');
+      return;
+    }
+    if (!mainUnit.trim()) {
+      setError('분석할 대단원(또는 단원 번호)을 입력해주세요.');
       return;
     }
 
@@ -184,7 +192,7 @@ const App: React.FC = () => {
                 </div>
                 {!result && (
                   <div className="flex flex-wrap gap-2">
-                    {PUBLISHERS_LIST.map((pub) => (
+                    {PUBLISHERS_15.map((pub) => (
                       <button
                         key={pub}
                         type="button"
