@@ -119,7 +119,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 font-bold text-xs">
             <BadgeCheck className="w-3.5 h-3.5" />
-            22개정 교육과정
+            15개정 교육과정
           </div>
         </div>
       </header>
@@ -134,7 +134,7 @@ const App: React.FC = () => {
               3모 대비 교과서 정밀 압축
             </h2>
             <p className="text-slate-500 text-lg max-w-lg mx-auto">
-              AI가 22개정 교육과정의 핵심을 관통하는 방대한 학습 가이드를 생성합니다.
+              AI가 15개정 교육과정의 핵심을 관통하는 방대한 학습 가이드를 생성합니다.
             </p>
           </div>
         )}
@@ -160,7 +160,7 @@ const App: React.FC = () => {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 block ml-1">출판사 (22개정 기준)</label>
+                <label className="text-sm font-semibold text-slate-700 block ml-1">출판사 (15개정 기준)</label>
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
@@ -242,7 +242,7 @@ const App: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      3모 정밀 상세 정리 시작
+                      15개정 상세 정리 시작
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}
@@ -275,7 +275,7 @@ const App: React.FC = () => {
           loading && (
             <div className="text-center py-20 animate-pulse">
               <Sparkles className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
-              <p className="text-xl font-bold text-slate-800 uppercase tracking-wide mb-2">22개정 교육과정 데이터를 분석 중입니다</p>
+              <p className="text-xl font-bold text-slate-800 uppercase tracking-wide mb-2">15개정 교육과정 데이터를 분석 중입니다</p>
               <p className="text-slate-400 text-sm">심화 개념까지 포함된 광범위한 리포트를 생성하고 있습니다.</p>
             </div>
           )
@@ -293,7 +293,7 @@ const App: React.FC = () => {
                     <span className="w-1 h-1 bg-indigo-300 rounded-full"></span>
                     <span>{subject}</span>
                   </div>
-                  <span className="px-2 py-1 bg-indigo-600 text-white rounded font-black">22개정</span>
+                  <span className="px-2 py-1 bg-indigo-600 text-white rounded font-black">15개정</span>
                   <span className="px-2 py-1 bg-slate-800 text-white rounded flex items-center gap-1 font-black">
                     FULL ANALYSIS
                   </span>
@@ -345,7 +345,7 @@ const App: React.FC = () => {
                   {result.examPoints.length > 0 && (
                     <div className="pt-16 border-t border-slate-100">
                       <h3 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                        <CheckCircle2 className="w-7 h-7 text-red-500" /> 22개정 출제 분석 리포트
+                        <CheckCircle2 className="w-7 h-7 text-red-500" /> 15개정 출제 분석 리포트
                       </h3>
                       <div className="bg-red-50/50 rounded-3xl p-8 border border-red-100">
                         <ul className="space-y-6">
@@ -368,7 +368,7 @@ const App: React.FC = () => {
                     <MessageCircle className="w-6 h-6" />
                     <h3 className="font-bold text-lg">상세 내용 질문하기</h3>
                   </div>
-                  <div className="text-indigo-100 text-xs font-medium">22개정 전용 AI Tutor</div>
+                  <div className="text-indigo-100 text-xs font-medium">15개정 전용 AI Tutor</div>
                 </div>
                 <div className="p-8 h-[500px] overflow-y-auto space-y-6 flex flex-col bg-slate-50/30">
                   {chatMessages.length === 0 && (
@@ -428,7 +428,7 @@ const App: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-slate-400 text-sm tracking-wide">
             © 2024 AI Visual Textbook Summarizer. Powered by Groq (Llama 4).
-            <strong>2022 개정 교육과정</strong> 완벽 지원.
+            <strong>2015 개정 교육과정</strong> 완벽 지원.
           </p>
         </div>
       </footer>
