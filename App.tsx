@@ -194,7 +194,7 @@ const App: React.FC = () => {
                 </div>
                 {!result && (
                   <div className="flex flex-wrap gap-2">
-                    {PUBLISHERS_15.map((pub) => (
+                    {PUBLISHERS_LIST.map((pub) => (
                       <button
                         key={pub}
                         type="button"
