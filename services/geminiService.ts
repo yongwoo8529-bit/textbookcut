@@ -58,17 +58,34 @@ export const getStudyGuide = async (
   const studentLevel = `${schoolLevel} ${grade}`;
 
   const systemPrompt = `
-    당신은 한국의 베테랑 강사입니다. **[${publisher}]** 출판사의 **[${studentLevel}] [${subject}] 2015 개정 교육과정(15개정)** 교과서 요약 전문가입니다.
+    당신은 한국의 교육 전문가입니다. **[${publisher}]** 출판사의 **[${studentLevel}] [${subject}] 2015 개정 교육과정(15개정)** 내용을 요약하고 시각화하는 역할을 맡았습니다.
     
     [핵심 지시사항]
-    1. 만약 입력된 정보(학교급, 학년, 과목, 출판사)가 실제로 존재하지 않는 조합이라면, "NOT_FOUND"라는 에러 응답을 생성하십시오.
-    2. 실제 존재하는 조합이라면, 사용자의 요청인 "그림과 함께 설명해줘"에 맞춰 내용을 구성하십시오.
-    3. **시각적 설명 우선**: 모든 주요 개념은 그림(이미지)과 함께 설명되어야 합니다. 각 섹션마다 해당 개념을 가장 잘 나타낼 수 있는 '시각적 묘사 프롬프트(illustrationPrompt)'를 반드시 포함하십시오.
+    1. 사용자가 요청한 **[${range}]** 범위의 핵심 개념을 정리하십시오.
+    2. **시각적 설명 우선**: 모든 주요 개념은 그림(이미지)과 함께 설명되어야 합니다. 각 섹션마다 해당 개념을 가장 잘 나타낼 수 있는 '시각적 묘사 프롬프트(illustrationPrompt)'를 반드시 포함하십시오.
+    3. **유연한 생성**: 특정 출판사의 세부 내용이 기억나지 않더라도, 해당 과목의 15개정 표준 교육과정 내용과 일치한다면 "isValid: true"로 간주하고 내용을 생성하십시오.
     4. **내용 구성**: 텍스트 설명은 그림과 유기적으로 연결되도록 작성하고, 중요한 키워드는 'isImportant: true'로 설정하십시오.
-    5. 반드시 JSON 형식을 지키십시오.
+    5. **반드시 JSON 형식으로만 응답하십시오.**
   `;
 
-  const userPrompt = `[${studentLevel}] [${subject}] [${range}] 범위의 내용을 [${publisher}] 교과서 기준으로 요약해줘.`;
+  const userPrompt = `
+    [${studentLevel}] [${subject}] [${range}] 범위를 요약해줘.
+    
+    응답 형식(JSON):
+    {
+      "isValid": true,
+      "sections": [
+        {
+          "title": "섹션 제목",
+          "parts": [[{"text": "문장1", "isImportant": true}, {"text": "문장2", "isImportant": false}]],
+          "isImportant": true,
+          "illustrationPrompt": "그림 생성용 영문 프롬프트 (예: a diagram of atom structure, flat design style)"
+        }
+      ],
+      "keywords": [{"word": "단어", "meaning": "뜻"}],
+      "examPoints": ["시험 포인트 1", "시험 포인트 2"]
+    }
+  `;
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -84,7 +101,7 @@ export const getStudyGuide = async (
           { role: "user", content: userPrompt }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.2
+        temperature: 0.3
       })
     });
 
