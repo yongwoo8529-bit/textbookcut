@@ -23,13 +23,13 @@ export const getStudyGuide = async (
   // 1. DB에서 실제 교과서 원문 데이터 조회 (RAG)
   let textbookContext = "";
   try {
-    const { data: chunks, error: dbError } = await supabase
+    const query = supabase
       .from('content_chunks')
       .select(`
         raw_text, 
         page_number, 
         units!inner(
-          main_unit_name, 
+          title, 
           textbooks!inner(publisher, grade, subject)
         )
       `)
@@ -37,9 +37,16 @@ export const getStudyGuide = async (
       .eq('units.textbooks.grade', grade)
       .eq('units.textbooks.subject', subject);
 
+    // 단원명(range)이 숫자가 아니면 해당 단원명으로 필터링 시도
+    if (range && range.length > 2) {
+      query.ilike('units.title', `%${range.replace('단원', '').trim()}%`);
+    }
+
+    const { data: chunks, error: dbError } = await query;
+
     if (chunks && chunks.length > 0) {
       textbookContext = chunks.map(c => `[p.${c.page_number}] ${c.raw_text}`).join('\n');
-      console.log(`DB에서 ${chunks.length}개의 교과서 텍스트 조각을 로드했습니다.`);
+      console.log(`DB에서 ${chunks.length}개의 교과서 텍스트 조각을 로드했습니다. (필터: ${range})`);
     }
   } catch (err) {
     console.warn("DB 원문 조회 실패 (일반 지식으로 진행):", err);
