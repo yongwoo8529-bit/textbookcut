@@ -214,7 +214,7 @@ const App: React.FC = () => {
                   <input
                     type="text"
                     disabled={loading || !!result}
-                    placeholder="예: 1단원 전체, p.20-50, 수권과 해수"
+                    placeholder="예: 1단원 전체, 기권과 날씨, 물질의 구성"
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-black disabled:bg-slate-100 disabled:text-slate-500"
                     value={studyRange}
                     onChange={(e) => setStudyRange(e.target.value)}
