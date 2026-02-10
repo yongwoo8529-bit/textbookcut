@@ -9,8 +9,8 @@ interface ChatMessage {
   text: string;
 }
 
-const PUBLISHERS_15 = [
-  '미래엔', '비상교육', '동아출판', '천재교육', '지학사', '씨마스'
+const PUBLISHERS_LIST = [
+  '미래엔', '비상교육', '동아출판', '천재교육', '지학사', '씨마스', '천재교과서', '성림출판', 'YBM'
 ];
 
 const App: React.FC = () => {
@@ -184,7 +184,7 @@ const App: React.FC = () => {
                 </div>
                 {!result && (
                   <div className="flex flex-wrap gap-2">
-                    {PUBLISHERS_15.map((pub) => (
+                    {PUBLISHERS_LIST.map((pub) => (
                       <button
                         key={pub}
                         type="button"
