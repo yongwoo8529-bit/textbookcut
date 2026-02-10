@@ -15,6 +15,7 @@ const PUBLISHERS_LIST = [
 
 const App: React.FC = () => {
   const [subject, setSubject] = useState('');
+  const [pages, setPages] = useState('');
   const [mainUnit, setMainUnit] = useState('');
   const [subUnit, setSubUnit] = useState('');
   const [semester, setSemester] = useState('');
@@ -37,6 +38,7 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     setSubject('');
+    setPages('');
     setMainUnit('');
     setSubUnit('');
     setSemester('');
@@ -59,8 +61,8 @@ const App: React.FC = () => {
       setError('과목명을 입력해주세요.');
       return;
     }
-    if (!mainUnit.trim()) {
-      setError('분석할 대단원(또는 단원 번호)을 입력해주세요.');
+    if (!mainUnit.trim() && !pages.trim()) {
+      setError('분석할 단원 정보 또는 페이지 범위를 입력해주세요.');
       return;
     }
 
@@ -69,7 +71,7 @@ const App: React.FC = () => {
     setResult(null);
 
     try {
-      const unitInfo = `대단원: ${mainUnit}${subUnit ? `, 소단원: ${subUnit}` : ''}${semester ? ` (${semester})` : ''}`;
+      const unitInfo = `${pages ? `페이지: ${pages} ` : ''}${mainUnit ? `대단원: ${mainUnit} ` : ''}${subUnit ? `, 소단원: ${subUnit}` : ''}${semester ? ` (${semester})` : ''}`.trim();
       const data = await getStudyGuide(subject, unitInfo, schoolLevel, grade, selectedPublisher);
       setResult(data);
       const chat = createStudyChat(JSON.stringify(data));
@@ -229,14 +231,28 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 block ml-1">대단원</label>
+                <label className="text-sm font-semibold text-slate-700 block ml-1">페이지 범위 (선택)</label>
+                <div className="relative">
+                  <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    disabled={loading || !!result}
+                    placeholder="예: 12-35"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-black disabled:bg-slate-100 disabled:text-slate-500"
+                    value={pages}
+                    onChange={(e) => setPages(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 block ml-1">대단원 (선택)</label>
                 <div className="relative">
                   <List className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
-                    required
                     type="text"
                     disabled={loading || !!result}
-                    placeholder="예: I. 물질의 구성"
+                    placeholder="예: 1 또는 물질의 구성"
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-black disabled:bg-slate-100 disabled:text-slate-500"
                     value={mainUnit}
                     onChange={(e) => setMainUnit(e.target.value)}
