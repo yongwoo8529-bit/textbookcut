@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Sparkles, Loader2, ArrowRight, ExternalLink, GraduationCap, Send, MessageCircle, Building2, RotateCcw, CheckCircle2, Image as ImageIcon, Calendar, BadgeCheck, Globe, List, Hash } from 'lucide-react';
 import { getStudyGuide, createStudyChat } from './services/geminiService';
 import { SearchResult } from './types';
-import { Chat } from '@google/genai';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -26,7 +25,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [chatSession, setChatSession] = useState<Chat | null>(null);
+  const [chatSession, setChatSession] = useState<any>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -191,8 +190,8 @@ const App: React.FC = () => {
                         type="button"
                         onClick={() => setSelectedPublisher(pub)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${selectedPublisher === pub
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
                           }`}
                       >
                         {pub}
@@ -271,8 +270,8 @@ const App: React.FC = () => {
                 type="submit"
                 disabled={loading || !!result}
                 className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg ${!!result
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-300'
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-300'
                   }`}
               >
                 {loading ? (
@@ -463,8 +462,8 @@ const App: React.FC = () => {
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] rounded-2xl px-5 py-4 text-base shadow-sm ${msg.role === 'user'
-                        ? 'bg-blue-600 text-white rounded-tr-none'
-                        : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none whitespace-pre-wrap leading-relaxed'
+                      ? 'bg-blue-600 text-white rounded-tr-none'
+                      : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none whitespace-pre-wrap leading-relaxed'
                       }`}>
                       {msg.text}
                     </div>
@@ -509,7 +508,7 @@ const App: React.FC = () => {
       <footer className="w-full bg-slate-100 py-12 border-t border-slate-200 mt-auto">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-slate-400 text-sm tracking-wide">
-            © 2024 AI Visual Textbook Summarizer. Powered by Gemini 3.0.
+            © 2024 AI Visual Textbook Summarizer. Powered by Groq (Llama 4).
             <strong>15개정 교육과정</strong> 완벽 지원.
           </p>
         </div>

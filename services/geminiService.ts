@@ -1,14 +1,25 @@
 
-import { GoogleGenAI, Chat, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { SearchResult, StudySection } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || process.env.API_KEY || '').trim();
+const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
-// 안정적인 모델 명칭 사용
-const TEXT_MODEL = "gemini-2.0-flash";
-const IMAGE_MODEL = "gemini-2.0-flash"; // 이미지는 동일 모델 혹은 전용 모델 사용
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+// 모델 설정
+const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const IMAGE_MODEL = "gemini-2.0-flash";
+
+/**
+ * 이미지 생성 (Gemini 유지 - Groq 미지원)
+ */
 export const generateImage = async (prompt: string): Promise<string | undefined> => {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'PLACEHOLDER_API_KEY') {
+    console.warn("Gemini API Key is missing for image generation.");
+    return undefined;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: IMAGE_MODEL,
@@ -18,7 +29,6 @@ export const generateImage = async (prompt: string): Promise<string | undefined>
         ]
       },
       config: {
-        // 이미지 생성이 지원되는 모델인 경우의 설정
         // @ts-ignore
         imageConfig: { aspectRatio: "16:9" }
       }
@@ -35,16 +45,19 @@ export const generateImage = async (prompt: string): Promise<string | undefined>
   return undefined;
 };
 
+/**
+ * 학습 가이드 생성 (Groq API 사용)
+ */
 export const getStudyGuide = async (
-  subject: string, 
-  range: string, 
-  schoolLevel: string, 
+  subject: string,
+  range: string,
+  schoolLevel: string,
   grade: string,
   publisher: string
 ): Promise<SearchResult> => {
   const studentLevel = `${schoolLevel} ${grade}`;
-  
-  const prompt = `
+
+  const systemPrompt = `
     당신은 한국의 베테랑 강사입니다. **[${publisher}]** 출판사의 **[${studentLevel}] [${subject}] 2015 개정 교육과정(15개정)** 교과서 요약 전문가입니다.
     
     [핵심 지시사항]
@@ -55,75 +68,39 @@ export const getStudyGuide = async (
     5. 반드시 JSON 형식을 지키십시오.
   `;
 
+  const userPrompt = `[${studentLevel}] [${subject}] [${range}] 범위의 내용을 [${publisher}] 교과서 기준으로 요약해줘.`;
+
   try {
-    const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        // @ts-ignore
-        thinkingConfig: { thinkingBudget: 2048 },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            isValid: { type: Type.BOOLEAN, description: "실존하는 교과서 조합인지 여부" },
-            sections: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING },
-                  parts: { 
-                    type: Type.ARRAY, 
-                    items: { 
-                      type: Type.ARRAY, 
-                      items: {
-                        type: Type.OBJECT,
-                        properties: {
-                          text: { type: Type.STRING },
-                          isImportant: { type: Type.BOOLEAN }
-                        },
-                        required: ["text", "isImportant"]
-                      }
-                    } 
-                  },
-                  isImportant: { type: Type.BOOLEAN },
-                  illustrationPrompt: { type: Type.STRING }
-                },
-                required: ["title", "parts", "isImportant", "illustrationPrompt"]
-              }
-            },
-            keywords: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  word: { type: Type.STRING },
-                  meaning: { type: Type.STRING }
-                },
-                required: ["word", "meaning"]
-              }
-            },
-            examPoints: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["isValid", "sections", "keywords", "examPoints"]
-        }
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json"
       },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      })
     });
 
-    const data = JSON.parse(response.text || "{}");
-    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "GROQ_API_ERROR");
+    }
+
+    const result = await response.json();
+    const data = JSON.parse(result.choices[0].message.content || "{}");
+
     if (!data.isValid) {
       throw new Error("NOT_FOUND");
     }
 
     if (data.sections) {
-      // 병렬 생성 시에도 약간의 지연을 주거나 순차적으로 처리하여 429 방지 고려
-      // 여기서는 일단 병렬로 두되 개별 에러 핸들링 강화
       const imagePromises = data.sections.map(async (section: StudySection) => {
         if (section.illustrationPrompt) {
           section.imageUrl = await generateImage(section.illustrationPrompt);
@@ -132,15 +109,13 @@ export const getStudyGuide = async (
       await Promise.all(imagePromises);
     }
 
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
     return {
       ...data,
-      groundingChunks: groundingChunks as any
+      groundingChunks: [] // Groq는 Google Search Grounding 미지원
     };
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    if (error.message?.includes("429") || error.status === "RESOURCE_EXHAUSTED") {
+    console.error("Groq API Error:", error);
+    if (error.message?.includes("429") || error.message?.includes("rate_limit")) {
       throw new Error("RATE_LIMIT_EXCEEDED");
     }
     if (error.message === "NOT_FOUND") {
@@ -150,11 +125,45 @@ export const getStudyGuide = async (
   }
 };
 
-export const createStudyChat = (context: string): Chat => {
-  return ai.chats.create({
-    model: TEXT_MODEL,
-    config: {
-      systemInstruction: `당신은 학생의 질문에 답변하는 학습 도우미입니다. 2015 개정 교육과정(15개정) 지식을 바탕으로, 앞선 정리 내용과 그림 설명을 참고하여 답변하세요. 인사말은 생략하고 본론만 명확히 답변하세요.`,
-    },
-  });
+/**
+ * 학습 채팅 세션 (Groq API 사용)
+ */
+export const createStudyChat = (context: string) => {
+  const history: { role: string; content: string }[] = [
+    {
+      role: "system",
+      content: `당신은 학생의 질문에 답변하는 학습 도우미입니다. 2015 개정 교육과정(15개정) 지식을 바탕으로, 앞선 정리 내용과 그림 설명을 참고하여 답변하세요. 인사말은 생략하고 본론만 명확히 답변하세요. Context: ${context}`
+    }
+  ];
+
+  return {
+    sendMessage: async ({ message }: { message: string }) => {
+      history.push({ role: "user", content: message });
+
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: history,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("GROQ_CHAT_ERROR");
+      }
+
+      const result = await response.json();
+      const reply = result.choices[0].message.content;
+      history.push({ role: "assistant", content: reply });
+
+      return {
+        text: reply
+      };
+    }
+  };
 };
