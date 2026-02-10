@@ -5,48 +5,11 @@ import { SearchResult, StudySection } from "../types";
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || process.env.API_KEY || '').trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
 // 모델 설정
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const IMAGE_MODEL = "gemini-2.0-flash";
 
 /**
- * 이미지 생성 (Gemini 유지 - Groq 미지원)
- */
-export const generateImage = async (prompt: string): Promise<string | undefined> => {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'PLACEHOLDER_API_KEY') {
-    console.warn("Gemini API Key is missing for image generation.");
-    return undefined;
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: {
-        parts: [
-          { text: `An educational, clear, and high-quality 2D diagram or illustration for a school textbook explaining: ${prompt}. The style should be clean, modern, flat design, on a pure white background, without any text or labels inside the image. Focus on visual clarity and conceptual accuracy.` }
-        ]
-      },
-      config: {
-        // @ts-ignore
-        imageConfig: { aspectRatio: "16:9" }
-      }
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-  } catch (error) {
-    console.error("Image Generation Error:", error);
-  }
-  return undefined;
-};
-
-/**
- * 학습 가이드 생성 (Groq API 사용)
+ * 학습 가이드 생성 (Groq API 사용) - 2022 개정 교육과정 기준
  */
 export const getStudyGuide = async (
   subject: string,
@@ -58,32 +21,35 @@ export const getStudyGuide = async (
   const studentLevel = `${schoolLevel} ${grade}`;
 
   const systemPrompt = `
-    당신은 한국의 교육 전문가입니다. **[${publisher}]** 출판사의 **[${studentLevel}] [${subject}] 2015 개정 교육과정(15개정)** 내용을 요약하고 시각화하는 역할을 맡았습니다.
+    당신은 대한민국 교육 전문가입니다. **[${publisher}]** 출판사의 **[${studentLevel}] [${subject}] 2022 개정 교육과정(22개정)** 내용을 심도 있게 분석하고 요약하는 전문가입니다.
     
     [핵심 지시사항]
-    1. 사용자가 요청한 **[${range}]** 범위의 핵심 개념을 정리하십시오.
-    2. **시각적 설명 우선**: 모든 주요 개념은 그림(이미지)과 함께 설명되어야 합니다. 각 섹션마다 해당 개념을 가장 잘 나타낼 수 있는 '시각적 묘사 프롬프트(illustrationPrompt)'를 반드시 포함하십시오.
-    3. **유연한 생성**: 특정 출판사의 세부 내용이 기억나지 않더라도, 해당 과목의 15개정 표준 교육과정 내용과 일치한다면 "isValid: true"로 간주하고 내용을 생성하십시오.
-    4. **내용 구성**: 텍스트 설명은 그림과 유기적으로 연결되도록 작성하고, 중요한 키워드는 'isImportant: true'로 설정하십시오.
-    5. **반드시 JSON 형식으로만 응답하십시오.**
+    1. 사용자가 요청한 **[${range}]** 범위의 내용을 매우 광범위하고 상세하게 정리하십시오. 
+    2. 단순한 요약을 넘어, 개념 사이의 연결고리와 심화 학습 내용까지 포함하여 풍부하게 구성하십시오.
+    3. **내용의 풍부함**: 각 섹션을 세분화하여 최대한 많은 정보를 제공하되, 가독성을 위해 문단과 문장을 적절히 나누십시오.
+    4. **그림 제외**: 이미지는 생성하지 않으며, 오직 텍스트 기반의 상세한 설명에만 집중하십시오.
+    5. **유연한 생성**: 특정 출판사의 세부 내용이 기억나지 않더라도, 해당 과목의 22개정 표준 교육과정 방향성과 일치한다면 "isValid: true"로 간주하고 내용을 생성하십시오.
+    6. **반드시 JSON 형식으로만 응답하십시오.**
   `;
 
   const userPrompt = `
-    [${studentLevel}] [${subject}] [${range}] 범위를 요약해줘.
+    [${studentLevel}] [${subject}] [${range}] 범위를 아주 상세하고 광범위하게 정리해줘. (2022 개정 교육과정 기준)
     
     응답 형식(JSON):
     {
       "isValid": true,
       "sections": [
         {
-          "title": "섹션 제목",
-          "parts": [[{"text": "문장1", "isImportant": true}, {"text": "문장2", "isImportant": false}]],
-          "isImportant": true,
-          "illustrationPrompt": "그림 생성용 영문 프롬프트 (예: a diagram of atom structure, flat design style)"
+          "title": "섹션 제목 (추상적이지 않고 구체적으로)",
+          "parts": [
+            [{"text": "상세 설명 문장 1", "isImportant": true}, {"text": "상세 설명 문장 2", "isImportant": false}],
+            [{"text": "심화 보충 설명 문장", "isImportant": false}]
+          ],
+          "isImportant": true
         }
       ],
-      "keywords": [{"word": "단어", "meaning": "뜻"}],
-      "examPoints": ["시험 포인트 1", "시험 포인트 2"]
+      "keywords": [{"word": "핵심 개념", "meaning": "상세한 정의와 예시"}],
+      "examPoints": ["시험에 자주 나오는 포인트 1", "변별력을 가르는 심화 포인트 2"]
     }
   `;
 
@@ -117,18 +83,9 @@ export const getStudyGuide = async (
       throw new Error("NOT_FOUND");
     }
 
-    if (data.sections) {
-      const imagePromises = data.sections.map(async (section: StudySection) => {
-        if (section.illustrationPrompt) {
-          section.imageUrl = await generateImage(section.illustrationPrompt);
-        }
-      });
-      await Promise.all(imagePromises);
-    }
-
     return {
       ...data,
-      groundingChunks: [] // Groq는 Google Search Grounding 미지원
+      groundingChunks: []
     };
   } catch (error: any) {
     console.error("Groq API Error:", error);
@@ -149,7 +106,7 @@ export const createStudyChat = (context: string) => {
   const history: { role: string; content: string }[] = [
     {
       role: "system",
-      content: `당신은 학생의 질문에 답변하는 학습 도우미입니다. 2015 개정 교육과정(15개정) 지식을 바탕으로, 앞선 정리 내용과 그림 설명을 참고하여 답변하세요. 인사말은 생략하고 본론만 명확히 답변하세요. Context: ${context}`
+      content: `당신은 학생의 질문에 답변하는 학습 도우미입니다. 2022 개정 교육과정(22개정) 지식을 바탕으로 풍부하고 상세하게 답변하세요. 인사말은 생략하고 본론만 명확히 답변하세요. Context: ${context}`
     }
   ];
 
