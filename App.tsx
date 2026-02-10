@@ -76,12 +76,14 @@ const App: React.FC = () => {
       setChatSession(chat);
       setChatMessages([]);
     } catch (err: any) {
+      console.error("Submit Error:", err);
       if (err.message === 'RATE_LIMIT_EXCEEDED') {
         setError('현재 서비스 이용자가 많아 API 할당량이 일시적으로 소모되었습니다. 약 1분 후 다시 시도해 주세요.');
       } else if (err.message === 'NOT_FOUND') {
         setError('입력하신 정보에 해당하는 교과서를 찾을 수 없습니다. 출판사와 과목명을 다시 확인해 주세요.');
       } else {
-        setError('정보를 불러오는데 실패했습니다. 단원 명칭을 더 정확하게 입력해 보세요.');
+        // 상세 에러 메시지 표시 (디버깅용)
+        setError(`정보를 불러오는데 실패했습니다: ${err.message || '알 수 없는 오류'}`);
       }
     } finally {
       setLoading(false);
