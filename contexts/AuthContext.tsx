@@ -24,35 +24,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchRole = async (userId: string) => {
         console.log('[Auth] Fetching role for:', userId);
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', userId)
-                .single();
 
-            if (error) {
-                console.error('[Auth] Role fetch error:', error.message);
+        // Timeout for the specific DB query
+        const queryPromise = supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Query Timeout')), 3000)
+        );
+
+        try {
+            const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+            if (result.error) {
+                console.error('[Auth] Role error:', result.error.message);
                 return 'user';
             }
-            console.log('[Auth] Role successful:', data?.role);
-            return data?.role ?? 'user';
-        } catch (e) {
-            console.error('[Auth] Role fetch exception:', e);
-            return 'user';
+            console.log('[Auth] Role received:', result.data?.role);
+            return result.data?.role ?? 'user';
+        } catch (e: any) {
+            console.error('[Auth] Role fetch failed/timed out:', e.message);
+            return 'user'; // Fail safe to normal user
         }
     };
 
     useEffect(() => {
         const initAuth = async () => {
-            console.log('[Auth] Initializing...');
-
-            // Safety timeout: Ensure loading is resolved even if everything hangs
-            const loadingTimeout = setTimeout(() => {
-                console.warn('[Auth] Loading timed out, force clearing...');
-                setLoading(false);
-            }, 5000);
-
+            console.log('[Auth] Initializing session...');
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user ?? null;
@@ -65,18 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setRole(null);
                 }
             } catch (err) {
-                console.error('[Auth] Init failed:', err);
+                console.error('[Auth] Session init error:', err);
             } finally {
-                clearTimeout(loadingTimeout);
                 setLoading(false);
-                console.log('[Auth] Loading finished');
+                console.log('[Auth] Initial loading done');
             }
         };
 
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] State change:', event, session?.user?.email);
+            console.log('[Auth] Event:', event);
             const currentUser = session?.user ?? null;
             setUser(currentUser);
 
@@ -93,12 +92,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const signOut = async () => {
-        console.log('[Auth] Sign out initiated');
+        console.log('[Auth] Aggressive sign out...');
         try {
-            await supabase.auth.signOut();
-        } finally {
+            // Clear local states first for immediate UI feedback
             setUser(null);
             setRole(null);
+
+            // Try Supabase signout
+            await supabase.auth.signOut();
+
+            // Final blow: Force a complete page reload to clear all caches/states
+            console.log('[Auth] Forcing page refresh...');
+            window.location.href = '/';
+        } catch (error) {
+            console.error('[Auth] Sign out error:', error);
+            window.location.reload();
         }
     };
 
