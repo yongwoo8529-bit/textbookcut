@@ -28,9 +28,10 @@ const Signup: React.FC = () => {
             setMessage({ type: 'error', text: error.message });
             setLoading(false);
         } else {
-            setMessage({ type: 'success', text: '회원가입 확인 메일이 발송되었습니다. 메일을 확인해 주세요!' });
             setLoading(false);
-            // Optional: Auto redirect after few seconds if needed
+            // 가입 성공 시 로그인 페이지로 즉시 이동
+            alert('회원가입이 완료되었습니다! 로그인해 주세요.');
+            navigate('/login');
         }
     };
 
