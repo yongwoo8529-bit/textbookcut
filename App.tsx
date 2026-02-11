@@ -49,13 +49,22 @@ const Navbar: React.FC = () => {
               <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-bold text-xs">
                 <UserIcon className="w-3.5 h-3.5" />
                 {user.email?.split('@')[0]}
+                {/* 디버깅용: 현재 권한 표시 */}
+                <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${role === 'admin' ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-500'}`}>
+                  {role || 'none'}
+                </span>
               </div>
               <button
-                onClick={() => signOut()}
-                className="text-slate-500 hover:text-red-600 p-2 transition-colors"
-                title="로그아웃"
+                onClick={() => {
+                  // 강력 초기화 로그아웃
+                  localStorage.clear();
+                  signOut();
+                }}
+                className="text-slate-500 hover:text-red-600 p-2 transition-colors flex flex-col items-center gap-0.5"
+                title="로그아웃 & 초기화"
               >
                 <LogOut className="w-5 h-5" />
+                <span className="text-[9px]">RESET</span>
               </button>
             </>
           ) : (
