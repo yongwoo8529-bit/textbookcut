@@ -47,6 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     useEffect(() => {
+        // 안전장치: 3초 뒤에는 무조건 로딩 종료 (무한 로딩 방지)
+        const safetyTimer = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
+
         const initAuth = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
@@ -61,6 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     roleRef.current = null;
                     localStorage.removeItem('user-role');
                 }
+            } catch (err) {
+                console.error('[Auth] Session init error:', err);
             } finally {
                 setLoading(false);
             }
@@ -69,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            // console.log('[Auth] Event:', event); // 디버깅용 로그 제거
             const currentUser = session?.user ?? null;
 
             if (event === 'SIGNED_OUT') {
@@ -80,28 +88,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return;
             }
 
-            // 토큰 갱신 등 중요하지 않은 이벤트는 넘어감
+            // 토큰 갱신 등은 로딩 상태 건드리지 않음
             if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && user?.id === currentUser?.id)) {
-                setUser(currentUser);
                 return;
             }
 
-            // 새로운 로그인이나 세션 변화 시 로딩 상태 전환
+            // 그 외 로그인 관련 이벤트
             setLoading(true);
             setUser(currentUser);
 
-            if (currentUser) {
-                const userRole = await fetchRole(currentUser.id);
-                setRole(userRole);
-            } else {
-                setRole(null);
-                roleRef.current = null;
-                localStorage.removeItem('user-role');
+            try {
+                if (currentUser) {
+                    const userRole = await fetchRole(currentUser.id);
+                    setRole(userRole);
+                } else {
+                    setRole(null);
+                    roleRef.current = null;
+                    localStorage.removeItem('user-role');
+                }
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(safetyTimer);
+        };
     }, [user?.id]);
 
     const signOut = async () => {
