@@ -14,10 +14,10 @@ const Login: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
 
-    // 이미 로그인된 유저는 메인으로 리다이렉트
+    // 이미 로그인된 유저는 대시보드로 리다이렉트
     useEffect(() => {
         if (user && !authLoading) {
-            navigate('/', { replace: true });
+            navigate('/dashboard', { replace: true });
         }
     }, [user, authLoading, navigate]);
 
@@ -34,7 +34,7 @@ const Login: React.FC = () => {
                 setLoading(false);
             } else {
                 // 로그인 성공 시 리다이렉트는 위 useEffect가 처리하거나, 여기서 명시적으로 이동
-                navigate('/', { replace: true });
+                navigate('/dashboard', { replace: true });
             }
         } catch (err) {
             setError('로그인 중 오류가 발생했습니다.');

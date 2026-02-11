@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Loader2, Mail, Lock } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Signup: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -10,6 +11,14 @@ const Signup: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null);
     const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
+
+    // 이미 로그인된 유저는 대시보드로 리다이렉트
+    React.useEffect(() => {
+        if (user && !authLoading) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
