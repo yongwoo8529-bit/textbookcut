@@ -25,37 +25,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         // Check active sessions and subscribe to auth changes
         const setData = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                setUser(session?.user ?? null);
 
-            if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
-                setRole(profile?.role ?? 'user');
-            } else {
-                setRole(null);
+                if (session?.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single();
+                    setRole(profile?.role ?? 'user');
+                } else {
+                    setRole(null);
+                }
+            } catch (error) {
+                console.error('Error during auth initialization:', error);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
 
         setData();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
-                setRole(profile?.role ?? 'user');
-            } else {
-                setRole(null);
+            setLoading(true);
+            try {
+                setUser(session?.user ?? null);
+                if (session?.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single();
+                    setRole(profile?.role ?? 'user');
+                } else {
+                    setRole(null);
+                }
+            } catch (error) {
+                console.error('Error during auth state change:', error);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         });
 
         return () => {
