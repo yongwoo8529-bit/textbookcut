@@ -2,8 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 import { SearchResult, StudySection } from "../types";
 import { supabase } from "../lib/supabase";
 
-const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || process.env.API_KEY || '').trim();
-const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
+const GEMINI_API_KEY = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+const GROQ_API_KEY = (import.meta.env.VITE_GROQ_API_KEY || '').trim();
 
 // 모델 설정
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
