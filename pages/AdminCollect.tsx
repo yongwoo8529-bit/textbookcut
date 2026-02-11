@@ -22,7 +22,6 @@ const AdminCollect: React.FC = () => {
     const [subject, setSubject] = useState('');
     const [unitTitle, setUnitTitle] = useState('');
     const [content, setContent] = useState('');
-    const [pageNumber, setPageNumber] = useState(1);
 
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
@@ -99,7 +98,7 @@ const AdminCollect: React.FC = () => {
                 .from('content_chunks')
                 .insert({
                     unit_id: unit.id,
-                    page_number: pageNumber,
+                    page_number: 1, // Defaulting to 1 as page granularity is removed
                     raw_text: content,
                     is_important: false
                 });
@@ -108,7 +107,6 @@ const AdminCollect: React.FC = () => {
 
             setStatus({ type: 'success', message: '데이터가 성공적으로 저장되었습니다!' });
             setContent('');
-            setPageNumber(prev => prev + 1);
         } catch (err: any) {
             console.error(err);
             setStatus({ type: 'error', message: err.message || '저장 중 오류가 발생했습니다.' });
@@ -194,18 +192,6 @@ const AdminCollect: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">페이지</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
-                                            value={pageNumber}
-                                            onChange={(e) => setPageNumber(parseInt(e.target.value))}
-                                        />
-                                    </div>
-                                </div>
 
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between ml-1">
