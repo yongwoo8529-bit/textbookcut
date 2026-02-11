@@ -75,6 +75,7 @@ const Navbar: React.FC = () => {
 };
 
 const Home: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [subject, setSubject] = useState('');
   const [studyRange, setStudyRange] = useState('');
   const [schoolLevel] = useState('중학교');
@@ -166,6 +167,40 @@ const Home: React.FC = () => {
       setChatLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="max-w-4xl w-full px-4 py-20 flex-1 mx-auto text-center">
+        <div className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 uppercase tracking-widest">
+          Authentication Required
+        </div>
+        <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+          교과서 정밀 압축을 위해<br />로그인이 필요합니다
+        </h2>
+        <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
+          회원가입 후 AI Tutor와 함께 15개정 교육과정의 핵심을 관통하는 최상의 학습 가이드를 만나보세요.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/signup" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
+            <UserPlus className="w-5 h-5" />
+            무료로 시작하기
+          </Link>
+          <Link to="/login" className="bg-white text-slate-700 border border-slate-200 px-8 py-4 rounded-2xl text-lg font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+            <LogIn className="w-5 h-5" />
+            이미 계정이 있나요?
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-4xl w-full px-4 py-12 flex-1 mx-auto">
