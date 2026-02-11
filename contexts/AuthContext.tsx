@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -21,11 +21,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const roleRef = useRef<string | null>(null); // 역할 캐시 (세션 갱신 시 보호)
 
     const fetchRole = async (userId: string) => {
-        console.log('[Auth] Fetching role for:', userId);
+        // 이미 역할이 캐시되어 있으면 DB 조회 생략
+        if (roleRef.current) {
+            return roleRef.current;
+        }
 
-        // Timeout for the specific DB query
         const queryPromise = supabase
             .from('profiles')
             .select('role')
@@ -33,26 +36,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Query Timeout')), 3000)
+            setTimeout(() => reject(new Error('Query Timeout')), 5000)
         );
 
         try {
             const result = await Promise.race([queryPromise, timeoutPromise]) as any;
             if (result.error) {
                 console.error('[Auth] Role error:', result.error.message);
-                return 'user';
+                return roleRef.current || 'user';
             }
-            console.log('[Auth] Role received:', result.data?.role);
-            return result.data?.role ?? 'user';
+            const fetchedRole = result.data?.role ?? 'user';
+            roleRef.current = fetchedRole; // 캐시 저장
+            return fetchedRole;
         } catch (e: any) {
             console.error('[Auth] Role fetch failed/timed out:', e.message);
-            return 'user'; // Fail safe to normal user
+            return roleRef.current || 'user'; // 기존 캐시 값 유지
         }
     };
 
     useEffect(() => {
         const initAuth = async () => {
-            console.log('[Auth] Initializing session...');
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user ?? null;
@@ -63,12 +66,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setRole(userRole);
                 } else {
                     setRole(null);
+                    roleRef.current = null;
                 }
             } catch (err) {
                 console.error('[Auth] Session init error:', err);
             } finally {
                 setLoading(false);
-                console.log('[Auth] Initial loading done');
             }
         };
 
@@ -77,13 +80,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('[Auth] Event:', event);
             const currentUser = session?.user ?? null;
+
+            if (event === 'TOKEN_REFRESHED') {
+                // 토큰 갱신 시에는 유저/역할을 리셋하지 않음 (기존 상태 유지)
+                setUser(currentUser);
+                return;
+            }
+
+            if (event === 'SIGNED_OUT') {
+                setUser(null);
+                setRole(null);
+                roleRef.current = null;
+                return;
+            }
+
             setUser(currentUser);
 
             if (currentUser) {
+                // SIGNED_IN 이벤트에서만 역할 새로 조회
+                if (event === 'SIGNED_IN') {
+                    roleRef.current = null; // 새 로그인 시 캐시 초기화
+                }
                 const userRole = await fetchRole(currentUser.id);
                 setRole(userRole);
             } else {
                 setRole(null);
+                roleRef.current = null;
             }
             setLoading(false);
         });
@@ -92,17 +114,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const signOut = async () => {
-        console.log('[Auth] Aggressive sign out...');
         try {
-            // Clear local states first for immediate UI feedback
             setUser(null);
             setRole(null);
-
-            // Try Supabase signout
+            roleRef.current = null;
             await supabase.auth.signOut();
-
-            // Final blow: Force a complete page reload to clear all caches/states
-            console.log('[Auth] Forcing page refresh...');
             window.location.href = '/';
         } catch (error) {
             console.error('[Auth] Sign out error:', error);
