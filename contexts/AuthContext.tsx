@@ -19,38 +19,30 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(localStorage.getItem('user-role'));
     const [loading, setLoading] = useState(true);
-    const roleRef = useRef<string | null>(null); // 역할 캐시 (세션 갱신 시 보호)
+    const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
     const fetchRole = async (userId: string) => {
-        // 이미 역할이 캐시되어 있으면 DB 조회 생략
-        if (roleRef.current) {
-            return roleRef.current;
-        }
-
-        const queryPromise = supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', userId)
-            .single();
-
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Query Timeout')), 5000)
-        );
+        // 캐시가 있으면 즉시 반환하여 깜빡임 방지
+        if (roleRef.current) return roleRef.current;
 
         try {
-            const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-            if (result.error) {
-                console.error('[Auth] Role error:', result.error.message);
-                return roleRef.current || 'user';
-            }
-            const fetchedRole = result.data?.role ?? 'user';
-            roleRef.current = fetchedRole; // 캐시 저장
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
+
+            if (error) throw error;
+
+            const fetchedRole = data?.role ?? 'user';
+            roleRef.current = fetchedRole;
+            localStorage.setItem('user-role', fetchedRole);
             return fetchedRole;
-        } catch (e: any) {
-            console.error('[Auth] Role fetch failed/timed out:', e.message);
-            return roleRef.current || 'user'; // 기존 캐시 값 유지
+        } catch (e) {
+            console.error('[Auth] Role fetch failed:', e);
+            return 'user';
         }
     };
 
@@ -67,9 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } else {
                     setRole(null);
                     roleRef.current = null;
+                    localStorage.removeItem('user-role');
                 }
-            } catch (err) {
-                console.error('[Auth] Session init error:', err);
             } finally {
                 setLoading(false);
             }
@@ -78,40 +69,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] Event:', event);
             const currentUser = session?.user ?? null;
-
-            if (event === 'TOKEN_REFRESHED') {
-                // 토큰 갱신 시에는 유저/역할을 리셋하지 않음 (기존 상태 유지)
-                setUser(currentUser);
-                return;
-            }
 
             if (event === 'SIGNED_OUT') {
                 setUser(null);
                 setRole(null);
                 roleRef.current = null;
+                localStorage.removeItem('user-role');
+                setLoading(false);
                 return;
             }
 
+            // 토큰 갱신 등 중요하지 않은 이벤트는 넘어감
+            if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && user?.id === currentUser?.id)) {
+                setUser(currentUser);
+                return;
+            }
+
+            // 새로운 로그인이나 세션 변화 시 로딩 상태 전환
+            setLoading(true);
             setUser(currentUser);
 
             if (currentUser) {
-                // SIGNED_IN 이벤트에서만 역할 새로 조회
-                if (event === 'SIGNED_IN') {
-                    roleRef.current = null; // 새 로그인 시 캐시 초기화
-                }
                 const userRole = await fetchRole(currentUser.id);
                 setRole(userRole);
             } else {
                 setRole(null);
                 roleRef.current = null;
+                localStorage.removeItem('user-role');
             }
             setLoading(false);
         });
 
         return () => subscription.unsubscribe();
-    }, []);
+    }, [user?.id]);
 
     const signOut = async () => {
         try {
