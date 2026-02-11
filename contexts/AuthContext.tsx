@@ -30,12 +30,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(session?.user ?? null);
 
                 if (session?.user) {
-                    const { data: profile } = await supabase
+                    const { data: profile, error: pError } = await supabase
                         .from('profiles')
                         .select('role')
                         .eq('id', session.user.id)
                         .single();
-                    setRole(profile?.role ?? 'user');
+
+                    if (pError) {
+                        console.error('Error fetching profile:', pError);
+                        setRole('user');
+                    } else {
+                        console.log('Fetched role for user:', profile?.role);
+                        setRole(profile?.role ?? 'user');
+                    }
                 } else {
                     setRole(null);
                 }

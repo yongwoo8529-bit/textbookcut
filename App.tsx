@@ -48,7 +48,7 @@ const Navbar: React.FC = () => {
               )}
               <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-bold text-xs">
                 <UserIcon className="w-3.5 h-3.5" />
-                {user.email?.split('@')[0]}
+                {user.email?.split('@')[0]} ({role || '...'})
               </div>
               <button
                 onClick={() => signOut()}
