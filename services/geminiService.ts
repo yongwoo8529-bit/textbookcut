@@ -9,7 +9,7 @@ const GROQ_API_KEY = (import.meta.env.VITE_GROQ_API_KEY || '').trim();
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 /**
- * 교과서 본문 초안 자동 생성 (Gemini 1.5 Flash 사용)
+ * 교과서 본문 초안 자동 생성 (Gemini REST API 직접 호출)
  */
 export const generateTextbookDraft = async (
   publisher: string,
@@ -18,12 +18,8 @@ export const generateTextbookDraft = async (
   unitTitle: string
 ): Promise<string> => {
   if (!GEMINI_API_KEY) {
-    console.error("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in environment variables.");
-    throw new Error("Gemini API 키가 설정되지 않았습니다. 관리자 환경 설정을 확인해 주세요.");
+    throw new Error("Gemini API 키가 설정되지 않았습니다. Vercel 환경변수에 VITE_GEMINI_API_KEY를 등록해 주세요.");
   }
-
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `
     당신은 대한민국 2015 개정 교육과정 전문 집필가입니다.
@@ -36,24 +32,51 @@ export const generateTextbookDraft = async (
     - 대단원: ${unitTitle}
     
     [지침]
-    1. **방대한 분량**: 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
-    2. **교과서 문체**: 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
-    3. **구조화**: 소단원별로 제목을 붙이고 내용을 전개하십시오.
-    4. **핵심 강조**: 중요한 용어나 정의는 강조하여 기술하십시오.
-    5. **실제성**: 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
+    1. 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
+    2. 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
+    3. 소단원별로 제목을 붙이고 내용을 전개하십시오.
+    4. 중요한 용어나 정의는 강조하여 기술하십시오.
+    5. 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
     
     본문 텍스트만 출력하십시오. (부연 설명 제외)
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMsg = errorData?.error?.message || JSON.stringify(errorData);
+      console.error("Gemini API Error:", errorMsg);
+      throw new Error(`Gemini API 오류: ${errorMsg}`);
+    }
+
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      throw new Error("AI가 빈 응답을 반환했습니다. 다시 시도해 주세요.");
+    }
+
+    return text;
+  } catch (error: any) {
     console.error("Gemini Generation Error:", error);
-    throw new Error("AI 생성 중 오류가 발생했습니다. API 키 권한이나 할당량을 확인해 주세요.");
+    if (error.message?.startsWith("Gemini API") || error.message?.startsWith("AI가")) {
+      throw error; // 이미 상세한 에러 메시지
+    }
+    throw new Error(`AI 생성 실패: ${error.message}`);
   }
 };
+
 
 /**
  * 학습 가이드 생성 (Groq API 사용) - RAG (Supabase DB) 기반
