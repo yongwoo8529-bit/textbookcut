@@ -23,8 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
-    const fetchRole = async (userId: string) => {
-        // 캐시 확인 제거: 항상 최신 권한을 DB에서 확인하도록 변경 (캐시가 잘못되면 영원히 복구 안되는 문제 해결)
+    const fetchRole = async (userId: string, email?: string) => {
+        // [긴급 패치] 특정 이메일은 무조건 관리자 권한 부여 (DB 상태 무관)
+        if (email === 'yongwoo8529@gmail.com') {
+            const adminRole = 'admin';
+            roleRef.current = adminRole;
+            localStorage.setItem('user-role', adminRole);
+            return adminRole;
+        }
+
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -32,7 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('id', userId)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.warn('[Auth] Profile fetching error:', error.message);
+                // 프로필이 없는 경우라도 위 이메일 체크에서 걸러지지 않았다면 일단 user로 처리
+                return 'user';
+            }
 
             const fetchedRole = data?.role ?? 'user';
             roleRef.current = fetchedRole;
@@ -58,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentUser);
 
                 if (currentUser) {
-                    const userRole = await fetchRole(currentUser.id);
+                    const userRole = await fetchRole(currentUser.id, currentUser.email);
                     setRole(userRole);
                 } else {
                     setRole(null);
@@ -98,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             try {
                 if (currentUser) {
-                    const userRole = await fetchRole(currentUser.id);
+                    const userRole = await fetchRole(currentUser.id, currentUser.email);
                     setRole(userRole);
                 } else {
                     setRole(null);
