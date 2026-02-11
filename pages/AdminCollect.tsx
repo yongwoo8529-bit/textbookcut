@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book, Sparkles } from 'lucide-react';
-import { generateTextbookDraft } from '../services/geminiService';
+import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book, Sparkles, RefreshCw } from 'lucide-react';
+import { generateTextbookDraft, refineTextbookDraft } from '../services/geminiService';
 
 const AdminCollect: React.FC = () => {
     const { role } = useAuth();
@@ -26,6 +26,7 @@ const AdminCollect: React.FC = () => {
 
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
+    const [refineLoading, setRefineLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     const handleAIGenerate = async () => {
@@ -44,6 +45,30 @@ const AdminCollect: React.FC = () => {
             setStatus({ type: 'error', message: err.message });
         } finally {
             setGenLoading(false);
+        }
+    };
+
+    const handleRefine = async () => {
+        if (!content.trim()) {
+            setStatus({ type: 'error', message: '먼저 AI로 본문을 생성해 주세요.' });
+            return;
+        }
+        if (!additionalNotes.trim()) {
+            setStatus({ type: 'error', message: '추가할 내용을 입력해 주세요.' });
+            return;
+        }
+
+        setRefineLoading(true);
+        setStatus(null);
+        try {
+            const refined = await refineTextbookDraft(content, additionalNotes);
+            setContent(refined);
+            setAdditionalNotes('');
+            setStatus({ type: 'success', message: 'AI가 추가 내용을 본문에 통합했습니다.' });
+        } catch (err: any) {
+            setStatus({ type: 'error', message: err.message });
+        } finally {
+            setRefineLoading(false);
         }
     };
 
@@ -227,16 +252,28 @@ ${additionalNotes}`
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        ✏️ 추가/수정 내용 (선택사항)
+                                        ✏️ 추가/수정 내용
                                     </label>
                                     <textarea
-                                        rows={5}
-                                        placeholder="AI가 생성한 내용에 추가하거나 수정할 내용을 여기에 입력하세요..."
+                                        rows={4}
+                                        placeholder="보충하고 싶은 내용을 입력하세요. (예: '광합성 실험 과정을 더 자세히 설명해줘', '핵분열과 핵융합 비교표 추가해줘')"
                                         className="w-full px-5 py-4 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
                                         value={additionalNotes}
                                         onChange={(e) => setAdditionalNotes(e.target.value)}
                                     />
-                                    <p className="text-xs text-slate-400 ml-1">여기에 적은 내용은 AI 본문 아래에 합쳐져서 저장됩니다.</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleRefine}
+                                        disabled={refineLoading || !additionalNotes.trim() || !content.trim()}
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.98] disabled:bg-amber-200"
+                                    >
+                                        {refineLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <RefreshCw className="w-4 h-4" />
+                                        )}
+                                        AI에게 본문에 통합 요청
+                                    </button>
                                 </div>
 
                                 {status && (
