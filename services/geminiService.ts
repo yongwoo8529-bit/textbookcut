@@ -82,7 +82,7 @@ export const generateTextbookDraft = async (
 };
 
 /**
- * 기존 본문에 추가 내용을 보충하여 재생성 (Groq API)
+ * 추가 내용을 보충 생성 (Groq API) - 기존 본문은 유지하고 추가 부분만 생성
  */
 export const refineTextbookDraft = async (
   existingContent: string,
@@ -92,25 +92,22 @@ export const refineTextbookDraft = async (
     throw new Error("API 키가 설정되지 않았습니다.");
   }
 
-  const prompt = `다음은 교과서 단원의 기존 본문입니다:
+  // 기존 본문의 마지막 500자만 참고용으로 전달 (API 부하 최소화)
+  const contextSnippet = existingContent.length > 500
+    ? '...' + existingContent.slice(-500)
+    : existingContent;
 
----기존 본문---
-${existingContent}
----기존 본문 끝---
+  const prompt = `교과서 본문의 끝 부분 맥락:
+"""
+${contextSnippet}
+"""
 
-관리자가 아래와 같은 추가/수정 사항을 요청했습니다:
+관리자 요청: ${additionalNotes}
 
----추가 요청---
-${additionalNotes}
----추가 요청 끝---
-
-[지침]
-1. 기존 본문의 모든 내용을 그대로 유지하십시오. 절대 기존 내용을 삭제하지 마십시오.
-2. 관리자가 요청한 추가/수정 사항을 자연스럽게 기존 본문에 통합하십시오.
-3. 추가된 내용이 기존 흐름과 매끄럽게 연결되도록 문체를 통일하십시오.
-4. 최종 결과물은 하나의 완성된 교과서 본문처럼 읽혀야 합니다.
-
-통합된 최종 본문 텍스트만 출력하십시오.`;
+위 맥락에 이어서, 관리자가 요청한 내용을 교과서 본문 스타일로 상세하게 작성하십시오.
+- 기존 본문과 문체를 통일하십시오.
+- 요청된 내용만 집중적으로 서술하십시오.
+- 불필요한 서론이나 반복 없이 바로 본론을 작성하십시오.`;
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -122,11 +119,11 @@ ${additionalNotes}
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [
-          { role: "system", content: "당신은 교과서 편집 전문가입니다. 기존 본문에 새로운 내용을 자연스럽게 통합합니다." },
+          { role: "system", content: "당신은 교과서 편집 전문가입니다. 요청된 보충 내용을 교과서 문체로 작성합니다." },
           { role: "user", content: prompt }
         ],
         temperature: 0.3,
-        max_tokens: 8000
+        max_tokens: 4000
       })
     });
 
@@ -136,13 +133,14 @@ ${additionalNotes}
     }
 
     const result = await response.json();
-    const text = result.choices?.[0]?.message?.content;
+    const supplementalText = result.choices?.[0]?.message?.content;
 
-    if (!text) {
+    if (!supplementalText) {
       throw new Error("AI가 빈 응답을 반환했습니다. 다시 시도해 주세요.");
     }
 
-    return text;
+    // 기존 본문 + 보충 내용 합치기
+    return existingContent.trimEnd() + '\n\n' + supplementalText.trim();
   } catch (error: any) {
     console.error("Refine Error:", error);
     if (error.message?.startsWith("AI")) throw error;
