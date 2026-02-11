@@ -9,7 +9,7 @@ const GROQ_API_KEY = (import.meta.env.VITE_GROQ_API_KEY || '').trim();
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 /**
- * 교과서 본문 초안 자동 생성 (Gemini REST API 직접 호출)
+ * 교과서 본문 초안 자동 생성 (Groq API 사용 - Llama 모델)
  */
 export const generateTextbookDraft = async (
   publisher: string,
@@ -17,51 +17,55 @@ export const generateTextbookDraft = async (
   grade: string,
   unitTitle: string
 ): Promise<string> => {
-  if (!GEMINI_API_KEY) {
-    throw new Error("Gemini API 키가 설정되지 않았습니다. Vercel 환경변수에 VITE_GEMINI_API_KEY를 등록해 주세요.");
+  if (!GROQ_API_KEY) {
+    throw new Error("API 키가 설정되지 않았습니다. Vercel 환경변수에 VITE_GROQ_API_KEY를 등록해 주세요.");
   }
 
-  const prompt = `
-    당신은 대한민국 2015 개정 교육과정 전문 집필가입니다.
-    다음 정보를 바탕으로 실제 교과서 대단원 전체를 아우르는 풍부하고 상세한 본문 텍스트를 작성해 주세요.
-    
-    [정보]
-    - 출판사: ${publisher}
-    - 과목: ${subject}
-    - 학년: ${grade}
-    - 대단원: ${unitTitle}
-    
-    [지침]
-    1. 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
-    2. 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
-    3. 소단원별로 제목을 붙이고 내용을 전개하십시오.
-    4. 중요한 용어나 정의는 강조하여 기술하십시오.
-    5. 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
-    
-    본문 텍스트만 출력하십시오. (부연 설명 제외)
-  `;
+  const prompt = `당신은 대한민국 2015 개정 교육과정 전문 집필가입니다.
+다음 정보를 바탕으로 실제 교과서 대단원 전체를 아우르는 풍부하고 상세한 본문 텍스트를 작성해 주세요.
+
+[정보]
+- 출판사: ${publisher}
+- 과목: ${subject}
+- 학년: ${grade}
+- 대단원: ${unitTitle}
+
+[지침]
+1. 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
+2. 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
+3. 소단원별로 제목을 붙이고 내용을 전개하십시오.
+4. 중요한 용어나 정의는 강조하여 기술하십시오.
+5. 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
+
+본문 텍스트만 출력하십시오. (부연 설명 제외)`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      }
-    );
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: "system", content: "당신은 대한민국 2015 개정 교육과정 교과서 전문 집필가입니다. 정확하고 풍부한 교과서 본문을 작성합니다." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 8000
+      })
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
       const errorMsg = errorData?.error?.message || JSON.stringify(errorData);
-      console.error("Gemini API Error:", errorMsg);
-      throw new Error(`Gemini API 오류: ${errorMsg}`);
+      console.error("Groq Draft API Error:", errorMsg);
+      throw new Error(`AI 생성 오류: ${errorMsg}`);
     }
 
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const result = await response.json();
+    const text = result.choices?.[0]?.message?.content;
 
     if (!text) {
       throw new Error("AI가 빈 응답을 반환했습니다. 다시 시도해 주세요.");
@@ -69,9 +73,9 @@ export const generateTextbookDraft = async (
 
     return text;
   } catch (error: any) {
-    console.error("Gemini Generation Error:", error);
-    if (error.message?.startsWith("Gemini API") || error.message?.startsWith("AI가")) {
-      throw error; // 이미 상세한 에러 메시지
+    console.error("Draft Generation Error:", error);
+    if (error.message?.startsWith("AI") || error.message?.startsWith("API")) {
+      throw error;
     }
     throw new Error(`AI 생성 실패: ${error.message}`);
   }
