@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SearchResult, StudySection } from "../types";
 import { supabase } from "../lib/supabase";
 
