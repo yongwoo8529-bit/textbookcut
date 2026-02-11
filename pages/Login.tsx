@@ -1,0 +1,97 @@
+
+import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogIn, Loader2, Mail, Lock } from 'lucide-react';
+
+const Login: React.FC = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            setError(error.message);
+            setLoading(false);
+        } else {
+            navigate('/');
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+                <div className="text-center mb-8">
+                    <div className="inline-block p-3 bg-indigo-600 rounded-xl shadow-lg mb-4">
+                        <LogIn className="text-white w-8 h-8" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-slate-900">로그인</h2>
+                    <p className="text-slate-500 mt-2">교과서 압축기 서비스를 이용해 보세요</p>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700 block ml-1">이메일</label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                            <input
+                                type="email"
+                                required
+                                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                placeholder="example@email.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700 block ml-1">비밀번호</label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                            <input
+                                type="password"
+                                required
+                                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 animate-in fade-in">
+                            {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg active:scale-[0.98] disabled:bg-indigo-300"
+                    >
+                        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "로그인"}
+                    </button>
+                </form>
+
+                <div className="mt-8 text-center text-slate-600 text-sm">
+                    계정이 없으신가요?{" "}
+                    <Link to="/signup" className="text-indigo-600 font-bold hover:underline">
+                        회원가입
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Login;
