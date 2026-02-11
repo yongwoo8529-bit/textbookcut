@@ -1,28 +1,44 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Loader2, Mail, Lock } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
+    const { user, loading: authLoading } = useAuth(); // AuthContext 리다이렉트 체크용
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
 
+    // 이미 로그인된 유저는 메인으로 리다이렉트
+    useEffect(() => {
+        if (user && !authLoading) {
+            navigate('/', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (error) {
-            setError(error.message);
+            if (error) {
+                setError(error.message);
+                setLoading(false);
+            } else {
+                // 로그인 성공 시 리다이렉트는 위 useEffect가 처리하거나, 여기서 명시적으로 이동
+                navigate('/', { replace: true });
+            }
+        } catch (err) {
+            setError('로그인 중 오류가 발생했습니다.');
             setLoading(false);
-        } else {
-            navigate('/');
         }
     };
 
