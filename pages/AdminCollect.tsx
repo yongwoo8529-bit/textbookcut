@@ -22,6 +22,7 @@ const AdminCollect: React.FC = () => {
     const [subject, setSubject] = useState('');
     const [unitTitle, setUnitTitle] = useState('');
     const [content, setContent] = useState('');
+    const [additionalNotes, setAdditionalNotes] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
@@ -93,13 +94,20 @@ const AdminCollect: React.FC = () => {
                 unit = newU;
             }
 
-            // 3. Insert Content Chunk
+            // 3. Insert Content Chunk (merge AI content + manual additions)
+            const finalText = additionalNotes.trim()
+                ? `${content}
+
+[관리자 추가 내용]
+${additionalNotes}`
+                : content;
+
             const { error: cError } = await supabase
                 .from('content_chunks')
                 .insert({
                     unit_id: unit.id,
-                    page_number: 1, // Defaulting to 1 as page granularity is removed
-                    raw_text: content,
+                    page_number: 1,
+                    raw_text: finalText,
                     is_important: false
                 });
 
@@ -107,6 +115,7 @@ const AdminCollect: React.FC = () => {
 
             setStatus({ type: 'success', message: '데이터가 성공적으로 저장되었습니다!' });
             setContent('');
+            setAdditionalNotes('');
         } catch (err: any) {
             console.error(err);
             setStatus({ type: 'error', message: err.message || '저장 중 오류가 발생했습니다.' });
@@ -214,6 +223,20 @@ const AdminCollect: React.FC = () => {
                                         value={content}
                                         onChange={(e) => setContent(e.target.value)}
                                     />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                        ✏️ 추가/수정 내용 (선택사항)
+                                    </label>
+                                    <textarea
+                                        rows={5}
+                                        placeholder="AI가 생성한 내용에 추가하거나 수정할 내용을 여기에 입력하세요..."
+                                        className="w-full px-5 py-4 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
+                                        value={additionalNotes}
+                                        onChange={(e) => setAdditionalNotes(e.target.value)}
+                                    />
+                                    <p className="text-xs text-slate-400 ml-1">여기에 적은 내용은 AI 본문 아래에 합쳐져서 저장됩니다.</p>
                                 </div>
 
                                 {status && (
