@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book } from 'lucide-react';
+import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book, Sparkles } from 'lucide-react';
+import { generateTextbookDraft } from '../services/geminiService';
 
 const AdminCollect: React.FC = () => {
     const { role } = useAuth();
@@ -24,7 +25,27 @@ const AdminCollect: React.FC = () => {
     const [pageNumber, setPageNumber] = useState(1);
 
     const [loading, setLoading] = useState(false);
+    const [genLoading, setGenLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+    const handleAIGenerate = async () => {
+        if (!publisher || !subject || !unitTitle) {
+            setStatus({ type: 'error', message: '출판사, 과목, 단원 제목을 먼저 입력해 주세요.' });
+            return;
+        }
+
+        setGenLoading(true);
+        setStatus(null);
+        try {
+            const draft = await generateTextbookDraft(publisher, subject, grade, unitTitle);
+            setContent(draft);
+            setStatus({ type: 'success', message: 'AI가 본문 초안을 생성했습니다. 내용을 확인하고 필요한 부분을 수정해 주세요.' });
+        } catch (err: any) {
+            setStatus({ type: 'error', message: err.message });
+        } finally {
+            setGenLoading(false);
+        }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -187,11 +208,22 @@ const AdminCollect: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">본문 내용</label>
+                                    <div className="flex items-center justify-between ml-1">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">본문 내용</label>
+                                        <button
+                                            type="button"
+                                            onClick={handleAIGenerate}
+                                            disabled={genLoading || loading}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            {genLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                            AI로 본문 자동 생성 (대단원 기준)
+                                        </button>
+                                    </div>
                                     <textarea
                                         required
-                                        rows={10}
-                                        placeholder="페이지의 원본 텍스트를 입력하세요..."
+                                        rows={12}
+                                        placeholder="AI로 자동 생성하거나 페이지의 원본 텍스트를 입력하세요..."
                                         className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
                                         value={content}
                                         onChange={(e) => setContent(e.target.value)}

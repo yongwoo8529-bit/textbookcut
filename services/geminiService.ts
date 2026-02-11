@@ -152,8 +152,47 @@ export const getStudyGuide = async (
 };
 
 /**
- * 학습 채팅 세션 (Groq API 사용)
+ * 교과서 본문 초안 자동 생성 (Gemini 1.5 Flash 사용)
  */
+export const generateTextbookDraft = async (
+  publisher: string,
+  subject: string,
+  grade: string,
+  unitTitle: string
+): Promise<string> => {
+  const genAI = new GoogleGenAI(GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  const prompt = `
+    당신은 대한민국 2015 개정 교육과정 전문 집필가입니다.
+    다음 정보를 바탕으로 실제 교과서 대단원 전체를 아우르는 풍부하고 상세한 본문 텍스트를 작성해 주세요.
+    
+    [정보]
+    - 출판사: ${publisher}
+    - 과목: ${subject}
+    - 학년: ${grade}
+    - 대단원: ${unitTitle}
+    
+    [지침]
+    1. **방대한 분량**: 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
+    2. **교과서 문체**: 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
+    3. **구조화**: 소단원별로 제목을 붙이고 내용을 전개하십시오.
+    4. **핵심 강조**: 중요한 용어나 정의는 강조하여 기술하십시오.
+    5. **실제성**: 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
+    
+    본문 텍스트만 출력하십시오. (부연 설명 제외)
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error("Gemini Generation Error:", error);
+    throw new Error("AI 생성 중 오류가 발생했습니다.");
+  }
+};
+
 export const createStudyChat = (context: string) => {
   const history: { role: string; content: string }[] = [
     {
