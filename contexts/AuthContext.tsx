@@ -22,98 +22,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const setData = async () => {
-            console.log('[Auth] Initializing session...');
-            try {
-                const { data: { session }, error: sError } = await supabase.auth.getSession();
-                if (sError) {
-                    console.error('[Auth] Session error:', sError);
-                    setUser(null);
-                    setRole(null);
-                    setLoading(false);
-                    return;
-                }
+    const fetchRole = async (userId: string) => {
+        console.log('[Auth] Fetching role for:', userId);
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
 
+            if (error) {
+                console.error('[Auth] Role fetch error:', error.message);
+                return 'user';
+            }
+            console.log('[Auth] Role successful:', data?.role);
+            return data?.role ?? 'user';
+        } catch (e) {
+            console.error('[Auth] Role fetch exception:', e);
+            return 'user';
+        }
+    };
+
+    useEffect(() => {
+        const initAuth = async () => {
+            console.log('[Auth] Initializing...');
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user ?? null;
-                console.log('[Auth] User found:', currentUser?.email);
                 setUser(currentUser);
 
                 if (currentUser) {
-                    console.log('[Auth] Fetching role for:', currentUser.id);
-                    // Add a 5s timeout to the profile fetch to prevent infinite hang
-                    const profilePromise = supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', currentUser.id)
-                        .single();
-
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-                    );
-
-                    try {
-                        const result = await (Promise.race([profilePromise, timeoutPromise]) as any);
-
-                        if (result.error) {
-                            console.error('[Auth] Profile error:', result.error);
-                            setRole('user');
-                        } else {
-                            console.log('[Auth] Role fetched:', result.data?.role);
-                            setRole(result.data?.role ?? 'user');
-                        }
-                    } catch (pErr: any) {
-                        console.error('[Auth] Role fetch exception/timeout:', pErr.message);
-                        setRole('user'); // Default to user on timeout
-                    }
+                    const userRole = await fetchRole(currentUser.id);
+                    setRole(userRole);
                 } else {
                     setRole(null);
                 }
-            } catch (error) {
-                console.error('[Auth] Unexpected init error:', error);
-                setUser(null);
-                setRole(null);
+            } catch (err) {
+                console.error('[Auth] Init failed:', err);
             } finally {
-                console.log('[Auth] Initialization complete, setting loading to false');
                 setLoading(false);
+                console.log('[Auth] Loading finished');
             }
         };
 
-        setData();
+        initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] Auth state changed:', event, session?.user?.email);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                try {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', session.user.id)
-                        .single();
-                    setRole(profile?.role ?? 'user');
-                } catch (e) {
-                    console.error('[Auth] Role fetch error on change:', e);
-                    setRole('user');
-                }
+            console.log('[Auth] State change:', event, session?.user?.email);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+
+            if (currentUser) {
+                const userRole = await fetchRole(currentUser.id);
+                setRole(userRole);
             } else {
                 setRole(null);
             }
-            // Always ensure loading is false after state change handled
             setLoading(false);
         });
 
-        return () => {
-            subscription.unsubscribe();
-        };
+        return () => subscription.unsubscribe();
     }, []);
 
     const signOut = async () => {
-        console.log('[Auth] Signing out...');
+        console.log('[Auth] Sign out initiated');
         try {
             await supabase.auth.signOut();
-        } catch (error) {
-            console.error('[Auth] Sign out error:', error);
         } finally {
             setUser(null);
             setRole(null);
