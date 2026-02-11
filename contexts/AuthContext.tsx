@@ -46,6 +46,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const initAuth = async () => {
             console.log('[Auth] Initializing...');
+
+            // Safety timeout: Ensure loading is resolved even if everything hangs
+            const loadingTimeout = setTimeout(() => {
+                console.warn('[Auth] Loading timed out, force clearing...');
+                setLoading(false);
+            }, 5000);
+
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user ?? null;
@@ -60,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (err) {
                 console.error('[Auth] Init failed:', err);
             } finally {
+                clearTimeout(loadingTimeout);
                 setLoading(false);
                 console.log('[Auth] Loading finished');
             }
