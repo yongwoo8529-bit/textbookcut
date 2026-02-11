@@ -24,9 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
     const fetchRole = async (userId: string) => {
-        // 캐시가 있으면 즉시 반환하여 깜빡임 방지
-        if (roleRef.current) return roleRef.current;
-
+        // 캐시 확인 제거: 항상 최신 권한을 DB에서 확인하도록 변경 (캐시가 잘못되면 영원히 복구 안되는 문제 해결)
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -42,7 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return fetchedRole;
         } catch (e) {
             console.error('[Auth] Role fetch failed:', e);
-            return 'user';
+            // DB 연결 실패 시에만 캐시된 값(있다면)을 사용하고, 없으면 'user'로 간주
+            return roleRef.current || 'user';
         }
     };
 
