@@ -41,6 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             } catch (error) {
                 console.error('Error during auth initialization:', error);
+                setUser(null);
+                setRole(null);
             } finally {
                 setLoading(false);
             }
@@ -64,6 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             } catch (error) {
                 console.error('Error during auth state change:', error);
+                setUser(null);
+                setRole(null);
             } finally {
                 setLoading(false);
             }
