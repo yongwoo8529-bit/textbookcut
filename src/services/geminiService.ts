@@ -211,7 +211,7 @@ export const getStudyGuide = async (
   // 1. DB에서 과목/단원의 핵심 개념 조회 (RAG - appearance_logic 기반)
   let textbookContext = "";
   try {
-    // must_know_core + appearance_logic 조인 쿼리
+    // must_know_core + appearance_logic 조인 쿼리 (flattened schema 반영)
     let query = supabase
       .from('must_know_core')
       .select(`
@@ -234,7 +234,7 @@ export const getStudyGuide = async (
       `)
       .in('education_level', ['middle_1', 'middle_2', 'middle_3']);
 
-    // 과목 필터링 로직 개선
+    // 과목 필터링 (direct column 사용)
     if (subject === '과학' || subject === '과학탐구' || subject.includes('과학')) {
       query = query.in('subject', ['물리', '화학', '생물', '지구과학', '생명과학', '과학', '통합과학']);
     } else {
@@ -363,7 +363,11 @@ ${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_
        **[그 외 과목인 경우 (국어, 수학, 영어 등)]**
        해당 과목의 교육과정에 맞춰 가장 논리적인 4대 영역으로 나누어 1, 2, 3, 4 번호를 붙여 정리하십시오. (예: 수학 - 1. 수와 연산, 2. 문자와 식, 3. 함수, 4. 기하 및 통계)
 
-    2. **모든 데이터 포함 (내용이 길어도 됨)**: 데이터베이스에서 조회된 '모든 핵심 개념', '모든 함정 포인트', '모든 그래프/표 패턴', '모든 계산 문제'를 하나도 빠짐없이 해당 영역에 맞춰 분류하여 포함하십시오. 일부만 선택하지 말고 전체를 상세히 기록하십시오.
+    2. **모든 데이터 포함 및 지식 확장**: 
+       - 데이터베이스에서 조회된 모든 데이터를 분류하여 포함하십시오.
+       - **[매우 중요] 만약 특정 영역(예: 화학, 생명과학 등)의 데이터가 데이터베이스에서 조회되지 않았더라도, 해당 영역을 생략하지 마십시오.** 
+       - 데이터가 비어 있는 영역은 상단의 **[5개년(2021-2025) 트렌드 요약 데이터]**에 정의된 핵심 키워드와 당신의 전문 지식을 결합하여 풍부하고 상세하게 내용을 직접 구성하십시오.
+       - "데이터가 없어서 작성할 수 없다"는 식의 언급은 절대로 하지 마십시오.
     3. **상세한 설명**: 각 항목은 학생들이 독학할 수 있을 정도로 충분히 길고 상세하게 작성하십시오. 요약보다는 '자세한 강의' 형태로 작성하십시오.
     
     ❌ 금지 사항:
