@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
@@ -25,12 +24,52 @@ const Signup: React.FC = () => {
         setLoading(true);
         setMessage(null);
 
+        // ===== 디버깅 코드 추가 =====
+        console.log('=== Signup Debug ===');
+        console.log('email:', email);
+        console.log('password:', password);
+        console.log('email type:', typeof email);
+        console.log('password type:', typeof password);
+        
+        // 비 ASCII 문자 검출
+        function detectNonASCII(str: string, label: string) {
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i);
+                if (code > 127) {
+                    console.error(`❌ ${label}[${i}]: char="${str[i]}" code=${code}`);
+                }
+            }
+        }
+        
+        detectNonASCII(email, 'email');
+        detectNonASCII(password, 'password');
+        
+        // ISO-8859-1 검증 (0-255)
+        function validateISO88591(str: string, label: string) {
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i);
+                if (code > 255) {
+                    console.error(`❌ ${label}[${i}]: INVALID code=${code}`);
+                    return false;
+                }
+            }
+            console.log(`✅ ${label}: valid`);
+            return true;
+        }
+        
+        const emailValid = validateISO88591(email, 'email');
+        const passwordValid = validateISO88591(password, 'password');
+        
+        if (!emailValid || !passwordValid) {
+            setMessage({ type: 'error', text: '입력값에 허용되지 않은 문자가 포함되어 있습니다.' });
+            setLoading(false);
+            return;
+        }
+        // ===== 디버깅 코드 끝 =====
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
-            options: {
-                emailRedirectTo: window.location.origin
-            }
         });
 
         if (error) {
@@ -38,7 +77,6 @@ const Signup: React.FC = () => {
             setLoading(false);
         } else {
             setLoading(false);
-            // 가입 성공 시 로그인 페이지로 즉시 이동
             alert('회원가입이 완료되었습니다! 로그인해 주세요.');
             navigate('/login');
         }

@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { SearchResult, StudySection } from "../../types";
-import { supabase } from "../../lib/supabase";
+import { SearchResult, StudySection } from "../types";
+import { supabase } from "../lib/supabase";
 
 // --- env sanitize / debug utilities ---
 function sanitizeEnvVar(value: unknown) {

@@ -129,11 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = async () => {
         try {
+            await supabase.auth.signOut();
             setUser(null);
             setRole(null);
             roleRef.current = null;
-            await supabase.auth.signOut();
-            window.location.href = '/';
+            // LandingPage에서 호출될 때는 이미 / 경로이므로 중복 이동 방지
+            if (window.location.pathname !== '/') {
+                window.location.href = '/';
+            }
         } catch (error) {
             console.error('[Auth] Sign out error:', error);
             window.location.reload();
