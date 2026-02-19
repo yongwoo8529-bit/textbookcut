@@ -219,8 +219,8 @@ const Dashboard: React.FC = () => {
     <main className="max-w-4xl w-full px-4 py-12 flex-1 mx-auto">
       {!result && !loading && (
         <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 uppercase tracking-widest">
-            Advanced Analysis Engine
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-black mb-6 border border-indigo-100 animate-bounce">
+            💡 실시간 기출 분석 엔진 가동 중
           </div>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4">
             3모 완성: 5개년(2021-2025) 정밀 분석
@@ -308,7 +308,7 @@ const Dashboard: React.FC = () => {
                 <h3 className="text-xl font-bold text-white">5개년(2021-2025) 트렌드 분석 가이드</h3>
               </div>
               <span className="bg-indigo-500/50 text-indigo-50 px-3 py-1 rounded-full text-xs font-medium border border-indigo-400/30">
-                Exam Master v2.0
+                시험 정복 시스템 v2.0
               </span>
             </div>
 
@@ -374,12 +374,14 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px] flex flex-col">
-            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center gap-3">
-              <MessageCircle className="w-5 h-5 text-indigo-600" />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px] flex flex-col mt-12">
+            <div className="bg-slate-50 border-b border-slate-100 px-8 py-6 flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 ring-4 ring-indigo-50">
+                <Sparkles className="text-white w-6 h-6" />
+              </div>
               <div>
-                <h3 className="font-bold text-slate-800">AI 튜터와의 대화</h3>
-                <p className="text-xs text-slate-500">생성된 요약 내용을 바탕으로 질문해보세요</p>
+                <h3 className="text-xl font-black text-slate-900">AI 튜터와 대화하기</h3>
+                <p className="text-xs font-bold text-slate-400">당신만을 위한 1:1 맞춤형 피드백 서비스</p>
               </div>
             </div>
 
