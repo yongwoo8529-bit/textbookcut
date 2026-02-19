@@ -361,10 +361,10 @@ const Dashboard: React.FC = () => {
                       시험 적중 포인트
                     </h4>
                     <div className="space-y-2">
-                      {result.examPoints.map((point, idx) => (
+                      {result.examPoints?.map((point, idx) => (
                         <div key={idx} className="flex items-start gap-2 text-sm text-slate-700 font-medium">
                           <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                          {point}
+                          {typeof point === 'string' ? point : (typeof point === 'object' && point != null && 'text' in point ? (point as any).text : JSON.stringify(point))}
                         </div>
                       ))}
                     </div>

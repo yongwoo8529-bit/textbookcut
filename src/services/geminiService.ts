@@ -582,8 +582,13 @@ ${appLogic ? `- 빈도: ${appLogic.frequency_weight}, 상황: ${appLogic.conditi
           "parts": [ ... ]
         }
       ],
-      "keywords": [ ... ],
-      "examPoints": [ ... ]
+      "keywords": [
+        { "word": "용어", "meaning": "설명" }
+      ],
+      "examPoints": [
+        "강조하고 싶은 핵심 포인트 1 (반드시 단순 문자열로만 작성)",
+        "강조하고 싶은 핵심 포인트 2 (반드시 단순 문자열로만 작성)"
+      ]
     }
   `;
 
