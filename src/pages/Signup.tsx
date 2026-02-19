@@ -86,9 +86,10 @@ const Signup: React.FC = () => {
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                minLength={6}
                             />
                         </div>
-                        <p className="text-[10px] text-slate-400 ml-1">비밀번호나 이름은 1자리로 적어도 됩니다.</p>
+                        <p className="text-[10px] text-slate-400 ml-1">비밀번호는 최소 6자 이상이어야 합니다.</p>
                     </div>
 
                     {message && (
