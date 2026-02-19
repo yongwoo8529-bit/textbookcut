@@ -312,8 +312,65 @@ const Dashboard: React.FC = () => {
               </span>
             </div>
 
-            <div className="p-8 prose prose-slate max-w-none prose-headings:text-indigo-900 prose-a:text-indigo-600">
-              <div dangerouslySetInnerHTML={{ __html: result.summary }} />
+            <div className="p-8 space-y-10">
+              {/* 핵심 섹션 렌더링 */}
+              {result.sections.map((section, sIdx) => (
+                <div key={sIdx} className="space-y-4">
+                  <h4 className="text-xl font-bold text-indigo-900 border-b border-indigo-100 pb-2 flex items-center gap-2">
+                    {section.title}
+                  </h4>
+                  <div className="space-y-6">
+                    {section.parts.map((paragraph, pIdx) => (
+                      <div key={pIdx} className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                        {paragraph.map((sentence, tIdx) => (
+                          <p key={tIdx} className={`text-slate-700 leading-relaxed mb-2 last:mb-0 ${sentence.isImportant ? 'font-bold text-indigo-700' : ''}`}>
+                            {sentence.isImportant && <span className="inline-block mr-2 text-indigo-500">●</span>}
+                            {sentence.text}
+                          </p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* 핵심 키워드 */}
+                {result.keywords && result.keywords.length > 0 && (
+                  <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100">
+                    <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                      <List className="w-5 h-5 text-indigo-600" />
+                      핵심 용어 체크
+                    </h4>
+                    <div className="space-y-3">
+                      {result.keywords.map((kw, idx) => (
+                        <div key={idx} className="flex gap-2 text-sm">
+                          <span className="font-black text-indigo-600 shrink-0">[{kw.word}]</span>
+                          <span className="text-slate-600">{kw.meaning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 시험 포인트 */}
+                {result.examPoints && result.examPoints.length > 0 && (
+                  <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100">
+                    <h4 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-600" />
+                      시험 적중 포인트
+                    </h4>
+                    <div className="space-y-2">
+                      {result.examPoints.map((point, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm text-slate-700 font-medium">
+                          <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                          {point}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
