@@ -25,12 +25,21 @@ const Navbar: React.FC = () => {
   return (
     <header className="w-full bg-white border-b border-slate-200 py-4 px-4 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
-            <GraduationCap className="text-white w-5 h-5" />
+        {user ? (
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
+              <GraduationCap className="text-white w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 교과서 압축기</h1>
           </div>
-          <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 교과서 압축기</h1>
-        </Link>
+        ) : (
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
+              <GraduationCap className="text-white w-5 h-5" />
+            </div>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 교과서 압축기</h1>
+          </Link>
+        )}
         <div className="flex items-center gap-4">
           {user ? (
             <>
