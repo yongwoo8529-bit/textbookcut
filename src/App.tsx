@@ -30,7 +30,7 @@ const Navbar: React.FC = () => {
             <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
               <GraduationCap className="text-white w-5 h-5" />
             </div>
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 교과서 압축기</h1>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">모의고사 대비 사이트</h1>
           </div>
         ) : (
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -111,7 +111,7 @@ const LandingPage: React.FC = () => {
         Authentication Required
       </div>
       <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
-        교과서 정밀 압축을 위해<br />로그인이 필요합니다
+        모의고사 대비를 하기위해<br />로그인이 필요합니다
       </h2>
       <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
         회원가입 후 AI Tutor와 함께 15개정 교육과정의 핵심을 관통하는 최상의 학습 가이드를 만나보세요.
