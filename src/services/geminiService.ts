@@ -39,7 +39,7 @@ if (import.meta.env.DEV) {
 }
 
 // 모델 설정
-const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 // --- 고1 3월 모의고사 5개년(2021-2025) 트렌드 지식 베이스 ---
 const TREND_KNOWLEDGE_2025 = `
@@ -564,17 +564,13 @@ ${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_
     
     ============================================================================
     [DB 조회 결과]
-    ${textbookContext ? `
-    [must_know_core 데이터]
-    ${textbookContext}
-    
-    [appearance_logic 데이터]
-    ${textbookContext}
-    ` : '[경고] DB 조회 결과가 비어있습니다. 일반 지식으로 작성하지 마십시오. isValid: false 응답하십시오.'}
+    ${textbookContext || '[경고] DB 조회 결과가 비어있습니다. 일반 지식으로 작성하십시오.'}
     
     ============================================================================
-    [응답 형식 - Sttrict JSON]
+    [응답 형식 - Strict JSON]
     ============================================================================
+    
+    반드시 다음 JSON 형식을 유지하십시오:
     
     {
       "isValid": true,
@@ -644,14 +640,16 @@ ${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_
       groundingChunks: []
     };
   } catch (error: any) {
-    console.error("Groq API Error:", error);
+    console.error("getStudyGuide Error:", error);
     if (error.message?.includes("429") || error.message?.includes("rate_limit")) {
       throw new Error("RATE_LIMIT_EXCEEDED");
     }
     if (error.message === "NOT_FOUND") {
       throw new Error("NOT_FOUND");
     }
-    throw new Error("API_ERROR");
+    // 더 구체적인 에러 메시지 반환 (디버깅용)
+    const detailedMsg = error.message || "Unknown error";
+    throw new Error(`API_ERROR (${detailedMsg})`);
   }
 };
 
