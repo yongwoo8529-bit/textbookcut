@@ -223,10 +223,11 @@ const Dashboard: React.FC = () => {
             Advanced Analysis Engine
           </div>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4">
-            3모 대비 교과서 정밀 압축
+            3모 완성: 5개년(2021-2025) 정밀 분석
           </h2>
           <p className="text-slate-500 text-lg max-w-lg mx-auto">
-            AI가 15개정 교육과정의 핵심을 관통하는 방대한 학습 가이드를 생성합니다.
+            최근 5개년 기출 트렌드와 중학교 핵심 개념을 완벽 분석하여<br />
+            당신만을 위한 고득점 전략 가이드를 생성합니다.
           </p>
         </div>
       )}
@@ -246,8 +247,8 @@ const Dashboard: React.FC = () => {
                     disabled={loading || !!result}
                     onClick={() => setSelectedSubject(sub)}
                     className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedSubject === sub
-                        ? 'bg-indigo-600 text-white shadow-lg scale-105'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       } disabled:opacity-70`}
                   >
                     {sub}
@@ -304,10 +305,10 @@ const Dashboard: React.FC = () => {
             <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-8 py-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BadgeCheck className="text-indigo-200 w-6 h-6" />
-                <h3 className="text-xl font-bold text-white">AI 핵심 요약 가이드</h3>
+                <h3 className="text-xl font-bold text-white">5개년(2021-2025) 트렌드 분석 가이드</h3>
               </div>
               <span className="bg-indigo-500/50 text-indigo-50 px-3 py-1 rounded-full text-xs font-medium border border-indigo-400/30">
-                Llama 3 70B Powered
+                Exam Master v2.0
               </span>
             </div>
 
@@ -346,6 +347,13 @@ const Dashboard: React.FC = () => {
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'}
               `}>
+                    {msg.role === 'model' && msg.text.includes('최다 빈출') && (
+                      <div className="flex items-center gap-1 mb-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tighter">
+                          5개년 최다 빈출🔥
+                        </span>
+                      </div>
+                    )}
                     <div dangerouslySetInnerHTML={{
                       __html: msg.text.replace(/\n/g, '<br />')
                     }} />

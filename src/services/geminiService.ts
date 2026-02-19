@@ -6,16 +6,16 @@ import { supabase } from "../lib/supabase";
 function sanitizeEnvVar(value: unknown) {
   const raw = (typeof value === 'string') ? value : String(value ?? '');
   return raw.replace(/^\uFEFF/, '')
-            .replace(/[\r\n]+/g, '')
-            .trim();
+    .replace(/[\r\n]+/g, '')
+    .trim();
 }
 function maskKey(k: string) {
   if (!k) return '<empty>';
   if (k.length <= 8) return '*'.repeat(k.length);
-  return `${k.slice(0,4)}...${k.slice(-4)}`;
+  return `${k.slice(0, 4)}...${k.slice(-4)}`;
 }
 function findNonLatin1Indices(s: string) {
-  const bad: { i:number; cp:number }[] = [];
+  const bad: { i: number; cp: number }[] = [];
   for (let i = 0; i < s.length; i++) {
     const cp = s.codePointAt(i) || 0;
     if (cp > 255) bad.push({ i, cp });
@@ -32,14 +32,28 @@ export const GROQ_API_KEY = sanitizeEnvVar(RAW_GROQ);
 if (import.meta.env.DEV) {
   console.log('DEBUG: raw VITE_GROQ_API_KEY length =>', (RAW_GROQ as string)?.length ?? 0, '->', GROQ_API_KEY.length, 'masked:', maskKey(GROQ_API_KEY));
   const badGroq = findNonLatin1Indices(GROQ_API_KEY);
-  if (badGroq.length) console.warn('DEBUG: GROQ_API_KEY non-latin1 indices (sample):', badGroq.slice(0,10));
+  if (badGroq.length) console.warn('DEBUG: GROQ_API_KEY non-latin1 indices (sample):', badGroq.slice(0, 10));
   console.log('DEBUG: raw VITE_GEMINI_API_KEY length =>', (RAW_GEMINI as string)?.length ?? 0, '->', GEMINI_API_KEY.length, 'masked:', maskKey(GEMINI_API_KEY));
   const badGem = findNonLatin1Indices(GEMINI_API_KEY);
-  if (badGem.length) console.warn('DEBUG: GEMINI_API_KEY non-latin1 indices (sample):', badGem.slice(0,10));
+  if (badGem.length) console.warn('DEBUG: GEMINI_API_KEY non-latin1 indices (sample):', badGem.slice(0, 10));
 }
 
 // 모델 설정
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+
+// --- 고1 3월 모의고사 5개년(2021-2025) 트렌드 지식 베이스 ---
+const TREND_KNOWLEDGE_2025 = `
+[고1 3월 모의고사 과학 5개년(2021-2025) 핵심 트렌드]
+1. 물리학: 부력, 탄성력, 역학적 에너지 보존, 열의 이동(비열/열팽창), 빛의 합성 및 굴절, 전기 회로(옴의 법칙).
+2. 화학: 물질의 상태 변화, 용해도, 아보가드로 법칙 기초(분자 수), 연분비 일정 법칙, 산-염기 기초.
+3. 생명과학: 인체 순환계(심장 구조), 소화계 효소, 호르몬과 항상성, 세포 구조, 식물의 광합성.
+4. 지구과학: 빅뱅 우주론, 우주 팽창, 해륙풍, 지구 온난화, 암석과 광물의 순환.
+
+[2021-2025 특이사항]
+- 2025: 열전달(비열) 및 인체 순환계 복합 문제 난이도 상승.
+- 2024: 아보가드로 법칙 및 소화 효소(라이페이스 등) 비중 확대.
+- 2023: 부력과 탄성력 결합 문제 다수 출제.
+`;
 
 /**
  * 교과서 본문 초안 자동 생성 (Groq API 사용 - Llama 모델)
@@ -243,7 +257,7 @@ export const getStudyGuide = async (
     } else if (concepts && concepts.length > 0) {
       // 텍스트 형식으로 포맷팅
       let formattedText = '=== 핵심 개념 (appearance_logic 메타데이터 포함) ===\n\n';
-      
+
       // frequency_weight별로 정렬
       const sortedConcepts = concepts.sort((a, b) => {
         const aWeight = a.appearance_logic?.[0]?.frequency_weight || 0;
@@ -319,7 +333,11 @@ ${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_
     ============================================================================
     
     당신은 고1 3월 전국연합 모의고사 과학 영역 출제자 관점에서 학습 자료를 작성하는 
-    전문가입니다. 다음 규칙을 **절대로 어기지 말고** 모든 응답에 적용하십시오.
+    전문가입니다. 특히 최근 5개년(2021-2025) 기출 데이터를 완벽히 분석한 상태입니다.
+    다음 규칙을 **절대로 어기지 말고** 모든 응답에 적용하십시오.
+
+    [5개년(2021-2025) 트렌드 요약 데이터]
+    ${TREND_KNOWLEDGE_2025}
     
     ============================================================================
     [1단계: 데이터 소스 규칙 - 반드시 준수]
@@ -437,9 +455,11 @@ ${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_
     - 범위: ${range}
     
     [작성 기준]
-    1. **DB 데이터만 사용**: 하단의 데이터베이스 조회 결과만 포함하십시오.
-    2. **education_level 필터**: 중학교 범위(middle_1, middle_2, middle_3)의 개념만 선택하십시오.
-    3. **추측 금지**: DB에 없는 개념은 절대 추가하지 마십시오.
+    1. **5개년(2021-2025) 트렌드 우선**: DB 데이터 중 5개년 기출 트렌드(부력, 비열, 심장, 빅뱅 등)와 
+       일치하는 항목은 반드시 "🔥 자주 출제되는 유형" 또는 "5개년 최다 빈출"로 강조하십시오.
+    2. **DB 데이터만 사용**: 하단의 데이터베이스 조회 결과만 포함하십시오.
+    3. **education_level 필터**: 중학교 범위(middle_1, middle_2, middle_3)의 개념만 선택하십시오.
+    4. **추측 금지**: DB에 없는 개념은 절대 추가하지 마십시오.
     
     ============================================================================
     [appearance_logic 처리 규칙 - 매우 중요]
