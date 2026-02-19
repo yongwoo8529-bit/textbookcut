@@ -38,8 +38,9 @@ if (import.meta.env.DEV) {
   if (badGem.length) console.warn('DEBUG: GEMINI_API_KEY non-latin1 indices (sample):', badGem.slice(0, 10));
 }
 
-// 모델 설정
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// 모델 설정 (TPM 제한을 고려하여 8B 모델 사용 - 70B는 12k 제한으로 대량 데이터 처리 불가)
+const GROQ_MODEL = "llama-3.1-8b-instant";
+const GROQ_MODEL_CHAMP = "llama-3.3-70b-versatile"; // 성능 중심 작업용 (현재 TPM 제한으로 미사용)
 
 // --- 고1 3월 모의고사 5개년(2021-2025) 트렌드 지식 베이스 ---
 const TREND_KNOWLEDGE_2025 = `
@@ -234,14 +235,23 @@ export const getStudyGuide = async (
       `)
       .in('education_level', ['middle_1', 'middle_2', 'middle_3']);
 
-    // 과목 필터링 (direct column 사용)
-    if (subject === '과학' || subject === '과학탐구' || subject.includes('과학')) {
-      query = query.in('subject', ['물리', '화학', '생물', '지구과학', '생명과학', '과학', '통합과학']);
-    } else {
-      query = query.eq('subject', subject);
-    }
+    const { data: allConcepts, error: conceptError } = await query.order('importance', { ascending: false });
 
-    const { data: concepts, error: conceptError } = await query.order('importance', { ascending: false });
+    // 데이터 샘플링 최적화: 12,000 TPM 제한을 맞추기 위해 과목별 TOP 6개만 선택
+    let concepts = allConcepts || [];
+    if (subject === '과학' || subject === '과학탐구' || subject.includes('과학')) {
+      const areas = ['물리', '화학', '생물', '생명과학', '지구과학'];
+      const sampledCells: any[] = [];
+      areas.forEach(area => {
+        const areaItems = concepts.filter(c => c.subject === area || area.includes(c.subject || ''))
+          .sort((a, b) => (a.importance === 'A' ? -1 : 1))
+          .slice(0, 6); // 영역별 최대 6개 (합계 약 24개)
+        sampledCells.push(...areaItems);
+      });
+      concepts = sampledCells;
+    } else {
+      concepts = concepts.slice(0, 20); // 일반 과목은 상위 20개
+    }
 
     // exam_trap_points 조회
     const { data: trapPoints, error: trapError } = await supabase
@@ -278,56 +288,28 @@ export const getStudyGuide = async (
       sortedConcepts.forEach((concept) => {
         const appLogic = concept.appearance_logic?.[0];
         formattedText += `
-[${concept.importance}] ${concept.title}
-- ID: ${concept.id}
-- 교육 수준: ${concept.education_level}
-- 설명: ${concept.description}
+[${concept.importance}] ${concept.title}(${concept.subject})
+- 설명: ${concept.description?.substring(0, 100)}
 ${concept.formula ? `- 공식: ${concept.formula}` : ''}
-${concept.key_terms ? `- 핵심 용어: ${concept.key_terms}` : ''}
-${appLogic ? `
-[출제 빈도 및 출제 상황]
-- frequency_weight: ${appLogic.frequency_weight} (1:드문 ~ 5:거의항상)
-- 출제 상황: ${appLogic.condition_context}
-- 학생판단: ${appLogic.reasoning_required}
-- 문제 형식: ${appLogic.question_type}
-- 기출 현황: ${appLogic.test_frequency}회
-${appLogic.linked_concepts ? `- 연관 개념: ${JSON.stringify(appLogic.linked_concepts)}` : ''}
-` : ''}
+${appLogic ? `- 빈도: ${appLogic.frequency_weight}, 상황: ${appLogic.condition_context}` : ''}
 ---`;
       });
 
-      formattedText += '\n\n=== 함정 포인트 ===\n\n';
-      trapPoints?.forEach((trap) => {
-        formattedText += `
-[${trap.title}]
-- 올바른 개념: ${trap.correct_concept}
-- 흔한 실수: ${trap.common_mistake}
-- 설명: ${trap.explanation}
----`;
+      formattedText += '\n\n=== 함정/그래프/계산 ===\n\n';
+      trapPoints?.slice(0, 10).forEach((trap) => {
+        formattedText += `[함정] ${trap.title}: ${trap.common_mistake}\n`;
       });
 
-      formattedText += '\n\n=== 그래프/표 해석 ===\n\n';
-      graphPatterns?.forEach((graph) => {
-        formattedText += `
-[${graph.pattern_name}]
-- 축 설명: ${graph.axis_explanation}
-- 해석 핵심: ${graph.interpretation_key}
-- 문제 형식: ${graph.question_type}
-- 빈도: ${graph.frequency}회
----`;
+      graphPatterns?.slice(0, 8).forEach((graph) => {
+        formattedText += `[그래프] ${graph.pattern_name}: ${graph.interpretation_key}\n`;
       });
 
-      formattedText += '\n\n=== 계산형 문제 ===\n\n';
-      calculations?.forEach((calc) => {
-        formattedText += `
-[공식: ${calc.formula}]
-- 풀이 절차: ${calc.calculation_steps}
-- 계산 실수: ${calc.common_calculation_errors}
-- 단위 주의: ${calc.unit_considerations}
----`;
+      calculations?.slice(0, 8).forEach((calc) => {
+        formattedText += `[계산] ${calc.formula}: ${calc.calculation_steps}\n`;
       });
 
       textbookContext = formattedText;
+      console.log(`최적화된 데이터: 개념 ${concepts.length}개 로드 (TPM 제한 준수)`);
       console.log(`DB에서 ${concepts.length}개의 개념, ${trapPoints?.length || 0}개의 함정, ${graphPatterns?.length || 0}개의 그래프, ${calculations?.length || 0}개의 계산 데이터를 로드했습니다.`);
     } else {
       console.warn("DB에서 과목/교육 수준에 맞는 개념을 찾을 수 없습니다.");
