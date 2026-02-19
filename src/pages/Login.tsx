@@ -29,9 +29,12 @@ const Login: React.FC = () => {
         try {
             // 닉네임을 내부적으로 이메일 형식으로 변환
             const internalEmail = `${nickname}@user.local`;
+            // 가입 시와 동일한 패딩 적용
+            const internalPassword = password + "_local_pad";
+
             const { error } = await supabase.auth.signInWithPassword({
                 email: internalEmail,
-                password
+                password: internalPassword
             });
 
             if (error) {

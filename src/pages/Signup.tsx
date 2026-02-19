@@ -25,12 +25,14 @@ const Signup: React.FC = () => {
         setMessage(null);
 
         // 닉네임을 내부적으로 이메일 형식으로 변환 (Supabase Auth 호환용)
-        // 닉네임@user.local 형식을 사용합니다.
         const internalEmail = `${nickname}@user.local`;
+
+        // Supabase의 기본 비밀번호 정책(최소 6자)을 우회하기 위해 내부적으로 패딩 추가
+        const internalPassword = password + "_local_pad";
 
         const { error } = await supabase.auth.signUp({
             email: internalEmail,
-            password,
+            password: internalPassword,
             options: {
                 data: {
                     nickname: nickname
@@ -86,10 +88,9 @@ const Signup: React.FC = () => {
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                minLength={6}
                             />
                         </div>
-                        <p className="text-[10px] text-slate-400 ml-1">비밀번호는 최소 6자 이상이어야 합니다.</p>
+                        <p className="text-[10px] text-slate-400 ml-1">비밀번호나 이름은 1자리로 적어도 됩니다.</p>
                     </div>
 
                     {message && (
