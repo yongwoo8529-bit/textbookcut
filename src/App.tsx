@@ -48,7 +48,7 @@ const Navbar: React.FC = () => {
                 <UserIcon className="w-3.5 h-3.5" />
                 {user.email?.split('@')[0]}
                 <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${role === 'admin' ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-500'}`}>
-                  {role || 'none'}
+                  {role === 'admin' ? '관리자' : (role || 'none')}
                 </span>
               </div>
               <button
@@ -269,12 +269,12 @@ const Dashboard: React.FC = () => {
               {loading ? (
                 <>
                   <Loader2 className="w-6 h-6 animate-spin" />
-                  <span>AI 분석 중... (약 15초 소요)</span>
+                  <span>기출 데이터 분석 중...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  <span>AI 핵심 요약 생성하기</span>
+                  <span>기출 분석 요약 생성하기</span>
                 </>
               )}
             </button>
@@ -374,14 +374,22 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px] flex flex-col mt-12">
-            <div className="bg-slate-50 border-b border-slate-100 px-8 py-6 flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 ring-4 ring-indigo-50">
-                <Sparkles className="text-white w-6 h-6" />
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col mt-16 transition-all ring-1 ring-slate-100">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-8 py-8 flex items-center gap-6">
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl ring-4 ring-white/10 group">
+                  <Sparkles className="text-white w-8 h-8 group-hover:scale-110 transition-transform" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-slate-900 rounded-full"></div>
+                </div>
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">AI 튜터와 대화하기</h3>
-                <p className="text-xs font-bold text-slate-400">당신만을 위한 1:1 맞춤형 피드백 서비스</p>
+                <h3 className="text-2xl font-black text-white tracking-tight">AI 3모 튜터</h3>
+                <p className="text-indigo-200/70 text-sm font-bold">실시간 5개년 트렌드 분석 및 1:1 학습 상담</p>
+              </div>
+              <div className="ml-auto flex gap-2">
+                <div className="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold text-indigo-300 border border-white/5 uppercase">
+                  온라인
+                </div>
               </div>
             </div>
 
@@ -408,8 +416,8 @@ const Dashboard: React.FC = () => {
               `}>
                     {msg.role === 'model' && msg.text.includes('최다 빈출') && (
                       <div className="flex items-center gap-1 mb-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tighter">
-                          5개년 최다 빈출🔥
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-black border border-red-100 uppercase tracking-tighter shadow-sm">
+                          🔥 최다 빈출
                         </span>
                       </div>
                     )}
