@@ -24,8 +24,11 @@ const Signup: React.FC = () => {
         setLoading(true);
         setMessage(null);
 
-        // 닉네임을 내부적으로 이메일 형식으로 변환 (Supabase Auth 호환용)
-        const internalEmail = `${nickname}@user.local`;
+        // 닉네임을 내부적으로 안전한 ASCII(Hex) 형식으로 변환 (Supabase Auth 이메일 규격 준수)
+        const encodedNickname = Array.from(new TextEncoder().encode(nickname))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        const internalEmail = `${encodedNickname}@user.local`;
 
         // Supabase의 기본 비밀번호 정책(최소 6자)을 우회하기 위해 내부적으로 패딩 추가
         const internalPassword = password + "_local_pad";

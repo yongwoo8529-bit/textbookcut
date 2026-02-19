@@ -27,19 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
     const fetchProfile = async (userId: string, email?: string) => {
-        // [긴급 패치] 특정 사용자는 무조건 관리자 권한 부여 (DB 상태 무관)
-        if (email === 'yongwoo8529@gmail.com' || email === '구용우@user.local') {
-            const adminRole = 'admin';
-            roleRef.current = adminRole;
-            localStorage.setItem('user-role', adminRole);
-            setRole(adminRole);
-            // 닉네임이 구용우면 닉네임도 설정
-            const nicknameToSet = email === '구용우@user.local' ? '구용우' : 'Admin';
-            localStorage.setItem('user-nickname', nicknameToSet);
-            setNickname(nicknameToSet);
-            return { role: adminRole, nickname: nicknameToSet };
-        }
-
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -47,26 +34,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('id', userId)
                 .single();
 
-            if (error) {
-                console.warn('[Auth] Profile fetching error:', error.message);
-                const defaultRole = 'user';
-                const defaultNickname = email ? email.split('@')[0] : 'User';
-                return { role: defaultRole, nickname: defaultNickname };
-            }
-
-            const fetchedRole = data?.role ?? 'user';
+            // 특정 이메일 또는 닉네임 "yongwoo"는 무조건 관리자 권한 부여
+            const isHardcodedAdmin = email === 'yongwoo8529@gmail.com' || data?.nickname === 'yongwoo';
+            const fetchedRole = isHardcodedAdmin ? 'admin' : (data?.role ?? 'user');
             const fetchedNickname = data?.nickname ?? (email ? email.split('@')[0] : 'User');
 
             roleRef.current = fetchedRole;
             localStorage.setItem('user-role', fetchedRole);
             localStorage.setItem('user-nickname', fetchedNickname);
+            setRole(fetchedRole);
+            setNickname(fetchedNickname);
 
             return { role: fetchedRole, nickname: fetchedNickname };
         } catch (e) {
             console.error('[Auth] Profile fetch failed:', e);
             return {
                 role: roleRef.current || 'user',
-                nickname: localStorage.getItem('user-nickname') || (email ? email.split('@')[0] : 'User')
+                nickname: localStorage.getItem('user-nickname') || 'User'
             };
         }
     };

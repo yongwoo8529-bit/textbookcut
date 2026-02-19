@@ -27,8 +27,12 @@ const Login: React.FC = () => {
         setError(null);
 
         try {
-            // 닉네임을 내부적으로 이메일 형식으로 변환
-            const internalEmail = `${nickname}@user.local`;
+            // 닉네임을 내부적으로 안전한 ASCII(Hex) 형식으로 변환
+            const encodedNickname = Array.from(new TextEncoder().encode(nickname))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+            const internalEmail = `${encodedNickname}@user.local`;
+
             // 가입 시와 동일한 패딩 적용
             const internalPassword = password + "_local_pad";
 
