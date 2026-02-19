@@ -27,13 +27,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
     const fetchProfile = async (userId: string, email?: string) => {
-        // [긴급 패치] 특정 이메일은 무조건 관리자 권한 부여 (DB 상태 무관)
-        if (email === 'yongwoo8529@gmail.com') {
+        // [긴급 패치] 특정 사용자는 무조건 관리자 권한 부여 (DB 상태 무관)
+        if (email === 'yongwoo8529@gmail.com' || email === '구용우@user.local') {
             const adminRole = 'admin';
             roleRef.current = adminRole;
             localStorage.setItem('user-role', adminRole);
             setRole(adminRole);
-            return { role: adminRole, nickname: 'Admin' };
+            // 닉네임이 구용우면 닉네임도 설정
+            const nicknameToSet = email === '구용우@user.local' ? '구용우' : 'Admin';
+            localStorage.setItem('user-nickname', nicknameToSet);
+            setNickname(nicknameToSet);
+            return { role: adminRole, nickname: nicknameToSet };
         }
 
         try {
