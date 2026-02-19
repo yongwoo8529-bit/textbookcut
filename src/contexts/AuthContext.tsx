@@ -26,18 +26,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
-    const fetchProfile = async (userId: string, email?: string) => {
+    const fetchProfile = async (userId: string, userObj?: User | null) => {
         try {
+            // 메타데이터에서 닉네임 먼저 시도 (가장 빠름)
+            const metaNickname = userObj?.user_metadata?.nickname;
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('role, nickname')
                 .eq('id', userId)
                 .single();
 
-            // 특정 이메일 또는 닉네임 "yongwoo"는 무조건 관리자 권한 부여
-            const isHardcodedAdmin = email === 'yongwoo8529@gmail.com' || data?.nickname === 'yongwoo';
+            // 특정 이메일 또는 닉네임 "yongwoo"는 관리자 권한
+            const isHardcodedAdmin = userObj?.email === 'yongwoo8529@gmail.com' || data?.nickname === 'yongwoo' || metaNickname === 'yongwoo';
             const fetchedRole = isHardcodedAdmin ? 'admin' : (data?.role ?? 'user');
-            const fetchedNickname = data?.nickname ?? (email ? email.split('@')[0] : 'User');
+
+            // 닉네임 우선순위: DB > 메타데이터 > 이메일 앞부분
+            const fetchedNickname = data?.nickname || metaNickname || (userObj?.email ? userObj.email.split('@')[0] : 'User');
 
             roleRef.current = fetchedRole;
             localStorage.setItem('user-role', fetchedRole);
@@ -48,9 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return { role: fetchedRole, nickname: fetchedNickname };
         } catch (e) {
             console.error('[Auth] Profile fetch failed:', e);
+            const savedNickname = localStorage.getItem('user-nickname') || 'User';
+            setNickname(savedNickname);
             return {
                 role: roleRef.current || 'user',
-                nickname: localStorage.getItem('user-nickname') || 'User'
+                nickname: savedNickname
             };
         }
     };
@@ -67,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentUser);
 
                 if (currentUser) {
-                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser.email);
+                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser);
                     setRole(userRole);
                     setNickname(userNickname);
                 } else {
@@ -109,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             try {
                 if (currentUser) {
-                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser.email);
+                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser);
                     setRole(userRole);
                     setNickname(userNickname);
                 } else {

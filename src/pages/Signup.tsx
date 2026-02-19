@@ -60,14 +60,14 @@ const Signup: React.FC = () => {
 
                 <form onSubmit={handleSignup} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 block ml-1">기억할 수 있는 닉네임이나 이름</label>
+                        <label className="text-sm font-semibold text-slate-700 block ml-1">기억하실 수 있는 영어 닉네임이나 이름</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                             <input
                                 type="text"
                                 required
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                placeholder="닉네임 또는 이름"
+                                placeholder="영어 닉네임 또는 이름"
                                 value={nickname}
                                 onChange={(e) => setNickname(e.target.value)}
                             />

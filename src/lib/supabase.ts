@@ -34,20 +34,17 @@ if (import.meta.env.DEV) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- Auth Helpers for Nickname-based Auth ---
-export const encodeNickname = (nickname: string) => {
-	if (!nickname) return '';
-	return Array.from(new TextEncoder().encode(nickname))
-		.map(b => b.toString(16).padStart(2, '0'))
-		.join('');
-};
-
 export const getInternalEmail = (nickname: string) => {
-	const encoded = encodeNickname(nickname);
-	return `${encoded}@user.local`;
+	if (!nickname) return '';
+	// 영문/숫자면 그대로 사용, 아니면 안전하게 변환 (가독성 위해)
+	const safePart = nickname.toLowerCase().replace(/[^a-z0-9]/g, (char) => {
+		return char.charCodeAt(0).toString(16);
+	});
+	return `${safePart}@user.local`;
 };
 
 export const getInternalPassword = (password: string) => {
 	if (!password) return '';
-	// Supabase requires 6+ characters
-	return password + "_local_pad";
+	// Supabase의 최소 6자 정책을 지키기 위해 안전한 패딩 추가
+	return `auth_${password}_secure_local`;
 };
