@@ -6,6 +6,7 @@ import { User } from '@supabase/supabase-js';
 interface AuthContextType {
     user: User | null;
     role: string | null;
+    nickname: string | null;
     loading: boolean;
     signOut: () => Promise<void>;
 }
@@ -13,6 +14,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
     user: null,
     role: null,
+    nickname: null,
     loading: true,
     signOut: async () => { },
 });
@@ -20,44 +22,52 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [role, setRole] = useState<string | null>(localStorage.getItem('user-role'));
+    const [nickname, setNickname] = useState<string | null>(localStorage.getItem('user-nickname'));
     const [loading, setLoading] = useState(true);
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
 
-    const fetchRole = async (userId: string, email?: string) => {
+    const fetchProfile = async (userId: string, email?: string) => {
         // [긴급 패치] 특정 이메일은 무조건 관리자 권한 부여 (DB 상태 무관)
         if (email === 'yongwoo8529@gmail.com') {
             const adminRole = 'admin';
             roleRef.current = adminRole;
             localStorage.setItem('user-role', adminRole);
-            return adminRole;
+            setRole(adminRole);
+            return { role: adminRole, nickname: 'Admin' };
         }
 
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('role')
+                .select('role, nickname')
                 .eq('id', userId)
                 .single();
 
             if (error) {
                 console.warn('[Auth] Profile fetching error:', error.message);
-                // 프로필이 없는 경우라도 위 이메일 체크에서 걸러지지 않았다면 일단 user로 처리
-                return 'user';
+                const defaultRole = 'user';
+                const defaultNickname = email ? email.split('@')[0] : 'User';
+                return { role: defaultRole, nickname: defaultNickname };
             }
 
             const fetchedRole = data?.role ?? 'user';
+            const fetchedNickname = data?.nickname ?? (email ? email.split('@')[0] : 'User');
+
             roleRef.current = fetchedRole;
             localStorage.setItem('user-role', fetchedRole);
-            return fetchedRole;
+            localStorage.setItem('user-nickname', fetchedNickname);
+
+            return { role: fetchedRole, nickname: fetchedNickname };
         } catch (e) {
-            console.error('[Auth] Role fetch failed:', e);
-            // DB 연결 실패 시에만 캐시된 값(있다면)을 사용하고, 없으면 'user'로 간주
-            return roleRef.current || 'user';
+            console.error('[Auth] Profile fetch failed:', e);
+            return {
+                role: roleRef.current || 'user',
+                nickname: localStorage.getItem('user-nickname') || (email ? email.split('@')[0] : 'User')
+            };
         }
     };
 
     useEffect(() => {
-        // 안전장치: 3초 뒤에는 무조건 로딩 종료 (무한 로딩 방지)
         const safetyTimer = setTimeout(() => {
             setLoading(false);
         }, 3000);
@@ -69,12 +79,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentUser);
 
                 if (currentUser) {
-                    const userRole = await fetchRole(currentUser.id, currentUser.email);
+                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser.email);
                     setRole(userRole);
+                    setNickname(userNickname);
                 } else {
                     setRole(null);
+                    setNickname(null);
                     roleRef.current = null;
                     localStorage.removeItem('user-role');
+                    localStorage.removeItem('user-nickname');
                 }
             } catch (err) {
                 console.error('[Auth] Session init error:', err);
@@ -86,35 +99,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            // console.log('[Auth] Event:', event); // 디버깅용 로그 제거
             const currentUser = session?.user ?? null;
 
             if (event === 'SIGNED_OUT') {
                 setUser(null);
                 setRole(null);
+                setNickname(null);
                 roleRef.current = null;
                 localStorage.removeItem('user-role');
+                localStorage.removeItem('user-nickname');
                 setLoading(false);
                 return;
             }
 
-            // 토큰 갱신 등은 로딩 상태 건드리지 않음
             if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && user?.id === currentUser?.id)) {
                 return;
             }
 
-            // 그 외 로그인 관련 이벤트
             setLoading(true);
             setUser(currentUser);
 
             try {
                 if (currentUser) {
-                    const userRole = await fetchRole(currentUser.id, currentUser.email);
+                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser.email);
                     setRole(userRole);
+                    setNickname(userNickname);
                 } else {
                     setRole(null);
+                    setNickname(null);
                     roleRef.current = null;
                     localStorage.removeItem('user-role');
+                    localStorage.removeItem('user-nickname');
                 }
             } finally {
                 setLoading(false);
@@ -132,8 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await supabase.auth.signOut();
             setUser(null);
             setRole(null);
+            setNickname(null);
             roleRef.current = null;
-            // LandingPage에서 호출될 때는 이미 / 경로이므로 중복 이동 방지
             if (window.location.pathname !== '/') {
                 window.location.href = '/';
             }
@@ -144,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, role, loading, signOut }}>
+        <AuthContext.Provider value={{ user, role, nickname, loading, signOut }}>
             {children}
         </AuthContext.Provider>
     );

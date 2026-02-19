@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS public.profiles;
 CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
   email TEXT,
+  nickname TEXT,
   role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
@@ -23,8 +24,13 @@ CREATE POLICY "Users can update own profiles." ON public.profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, role)
-  VALUES (new.id, new.email, 'user');
+  INSERT INTO public.profiles (id, email, nickname, role)
+  VALUES (
+    new.id, 
+    new.email, 
+    COALESCE(new.raw_user_meta_data->>'nickname', split_part(new.email, '@', 1)),
+    'user'
+  );
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

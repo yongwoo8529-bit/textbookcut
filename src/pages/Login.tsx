@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 const Login: React.FC = () => {
     const { user, loading: authLoading } = useAuth(); // AuthContext 리다이렉트 체크용
 
-    const [email, setEmail] = useState('');
+    const [nickname, setNickname] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,12 @@ const Login: React.FC = () => {
         setError(null);
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            // 닉네임을 내부적으로 이메일 형식으로 변환
+            const internalEmail = `${nickname}@user.local`;
+            const { error } = await supabase.auth.signInWithPassword({
+                email: internalEmail,
+                password
+            });
 
             if (error) {
                 setError(error.message);
@@ -50,21 +55,21 @@ const Login: React.FC = () => {
                         <LogIn className="text-white w-8 h-8" />
                     </div>
                     <h2 className="text-3xl font-bold text-slate-900">로그인</h2>
-                    <p className="text-slate-500 mt-2">교과서 압축기 서비스를 이용해 보세요</p>
+                    <p className="text-slate-500 mt-2">모의고사 대비 사이트 서비스를 이용해 보세요</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 block ml-1">이메일</label>
+                        <label className="text-sm font-semibold text-slate-700 block ml-1">닉네임 또는 이름</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                             <input
-                                type="email"
+                                type="text"
                                 required
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                placeholder="example@email.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="닉네임 또는 이름"
+                                value={nickname}
+                                onChange={(e) => setNickname(e.target.value)}
                             />
                         </div>
                     </div>

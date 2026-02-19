@@ -21,7 +21,7 @@ const PUBLISHERS_LIST = [
 const SUBJECTS = ['국어', '영어', '수학', '한국사', '과학', '사회'];
 // --- Components ---
 const Navbar: React.FC = () => {
-  const { user, role, signOut } = useAuth();
+  const { user, role, nickname, signOut } = useAuth();
   return (
     <header className="w-full bg-white border-b border-slate-200 py-4 px-4 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -55,7 +55,7 @@ const Navbar: React.FC = () => {
               </Link>
               <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-bold text-xs">
                 <UserIcon className="w-3.5 h-3.5" />
-                {user.email?.split('@')[0]}
+                {nickname || user.email?.split('@')[0]}
                 <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${role === 'admin' ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-500'}`}>
                   {role === 'admin' ? '관리자' : (role || 'none')}
                 </span>
