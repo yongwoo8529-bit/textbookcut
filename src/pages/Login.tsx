@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getInternalEmail, getInternalPassword } from '../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Loader2, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,16 +26,10 @@ const Login: React.FC = () => {
         setError(null);
 
         try {
-            // 닉네임을 내부적으로 안전한 ASCII(Hex) 형식으로 변환
-            const encodedNickname = Array.from(new TextEncoder().encode(nickname))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-            const internalEmail = `${encodedNickname}@user.local`;
+            const internalEmail = getInternalEmail(nickname);
+            const internalPassword = getInternalPassword(password);
 
-            // 가입 시와 동일한 패딩 적용
-            const internalPassword = password + "_local_pad";
-
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email: internalEmail,
                 password: internalPassword
             });
@@ -44,9 +37,11 @@ const Login: React.FC = () => {
             if (error) {
                 setError(error.message);
                 setLoading(false);
+            } else if (data.user || data.session) {
+                // 성공 시 Dashboard로 강제 이동 (SPA 내비게이션보다 확실함)
+                window.location.href = '/dashboard';
             } else {
-                // 로그인 성공 시 리다이렉트는 위 useEffect가 처리하거나, 여기서 명시적으로 이동
-                navigate('/dashboard', { replace: true });
+                setLoading(false);
             }
         } catch (err) {
             setError('로그인 중 오류가 발생했습니다.');

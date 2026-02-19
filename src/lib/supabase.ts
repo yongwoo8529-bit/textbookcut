@@ -32,3 +32,22 @@ if (import.meta.env.DEV) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --- Auth Helpers for Nickname-based Auth ---
+export const encodeNickname = (nickname: string) => {
+	if (!nickname) return '';
+	return Array.from(new TextEncoder().encode(nickname))
+		.map(b => b.toString(16).padStart(2, '0'))
+		.join('');
+};
+
+export const getInternalEmail = (nickname: string) => {
+	const encoded = encodeNickname(nickname);
+	return `${encoded}@user.local`;
+};
+
+export const getInternalPassword = (password: string) => {
+	if (!password) return '';
+	// Supabase requires 6+ characters
+	return password + "_local_pad";
+};

@@ -90,18 +90,6 @@ const Navbar: React.FC = () => {
 const LandingPage: React.FC = () => {
   const { user, signOut } = useAuth();
 
-  useEffect(() => {
-    // 사용자가 루트 페이지로 들어오면 자동으로 로그아웃 처리하여 
-    // 항상 새로운 로그인 기회를 제공 (회원정보는 DB에 유지됨)
-    if (user) {
-      if (import.meta.env.DEV) {
-        console.log('DEBUG: Auto-signing out active session on LandingPage');
-      }
-      localStorage.clear();
-      signOut();
-    }
-  }, [user, signOut]);
-
   if (import.meta.env.DEV) {
     console.log('DEBUG: LandingPage rendered, user:', user ? user.email : 'null');
   }
