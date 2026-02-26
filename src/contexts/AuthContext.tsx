@@ -64,9 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     useEffect(() => {
+        // 강력한 세이프티 타이머: 어떤 경우에도 5초 뒤에는 로딩을 강제 종료
         const safetyTimer = setTimeout(() => {
+            console.warn('[Auth] Safety timeout reached. Forcing loading to false.');
             setLoading(false);
-        }, 3000);
+        }, 5000);
 
         const initAuth = async () => {
             try {
@@ -90,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('[Auth] Session init error:', err);
             } finally {
                 setLoading(false);
+                clearTimeout(safetyTimer); // 정상 완료 시 타이머 해제
             }
         };
 

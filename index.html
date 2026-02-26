@@ -8,28 +8,11 @@
     <meta name="description" content="모의고사 기출 분석 및 핵심 개념을 AI가 정리해주는 스마트 학습 도우미">
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
-    <script type="module" src="/src/main.tsx?v=20260226_F"></script>
-    <script>
-        // 브라우저 탭을 처음 열 때(sessionStorage에 데이터가 없을 때)만 로컬스토리지 토큰 강제 삭제
-        if (!sessionStorage.getItem('textbookcut_booted')) {
-            console.log('Final Hard Logout: Clearing persistent auth tokens for fresh entry.');
-            // Supabase/Firebase 등이 사용하는 일반적인 인증 키 패턴 삭제
-            for (var key in localStorage) {
-                if (key.indexOf('sb-') === 0 || key.indexOf('supabase.auth') === 0) {
-                    localStorage.removeItem(key);
-                }
-            }
-            // 명시적 로그아웃 기록
-            localStorage.removeItem('user-role');
-            localStorage.removeItem('user-nickname');
-            sessionStorage.setItem('textbookcut_booted', '1');
-        }
-    </script>
 </head>
 
 <body>
     <div id="root"></div>
-
+    <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>

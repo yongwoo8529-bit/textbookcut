@@ -539,17 +539,17 @@ const AppContent: React.FC = () => {
 
   // --- [요구사항] 링크 접속 시(첫 진입) 자동 로그아웃 로직 ---
   useEffect(() => {
-    if (loading) return; // 인증 정보 로딩이 끝날 때까지 대기
+    if (loading) return;
 
-    const hasCheckedEntry = sessionStorage.getItem('textbookcut_entry_checked');
-    const isRootPath = window.location.pathname === '/';
+    // 현재 탭 세션에서 한 번이라도 체크했는지 확인
+    const entryChecked = sessionStorage.getItem('textbookcut_entry_checked');
+    const isRoot = window.location.pathname === '/';
 
-    if (!hasCheckedEntry && isRootPath) {
+    if (isRoot && !entryChecked) {
       if (user) {
-        console.log('DEBUG: Fresh session detected on root with user, forcing logout.');
+        console.log('AUTO-LOGOUT 실행: 링크 접속 첫 진입 감지 -> 로그아웃 실행');
         signOut();
       }
-      // 로그아웃을 시도했든 유저가 없었든, 이번 세션의 첫 집입 체크는 완료됨을 기록
       sessionStorage.setItem('textbookcut_entry_checked', 'true');
     }
   }, [loading, user, signOut]);
