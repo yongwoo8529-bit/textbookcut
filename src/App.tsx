@@ -538,17 +538,18 @@ const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
 
   // --- [새로운 요구사항] 링크 접속 시 자동 로그아웃 로직 ---
-  // sessionStorage를 사용하여 브라우저 탭을 처음 열 때(또는 사이트 첫 진입 시)만 로그아웃 트리거
   useEffect(() => {
-    const isFirstEntry = !sessionStorage.getItem('textbookcut_visited');
+    // 세션 스토리지가 아닌 로컬 스토리지를 사용하여 브라우저가 완전히 닫혀도 '방문 이력'을 관리
+    // 단, '첫 진입' 판단을 위해 현재 탭 세션도 참고
+    const hasVisitedThisSession = sessionStorage.getItem('textbookcut_active_session');
     const isRootPath = window.location.pathname === '/';
 
-    if (isFirstEntry && isRootPath) {
+    if (!hasVisitedThisSession && isRootPath) {
       if (user) {
-        console.log('DEBUG: Fresh entry detected, logging out per user request.');
+        console.log('DEBUG: Fresh session detected on root, forcing logout.');
         signOut();
       }
-      sessionStorage.setItem('textbookcut_visited', 'true');
+      sessionStorage.setItem('textbookcut_active_session', 'true');
     }
   }, [user, signOut]);
 
