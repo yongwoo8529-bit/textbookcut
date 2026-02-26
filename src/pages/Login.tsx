@@ -38,8 +38,8 @@ const Login: React.FC = () => {
                 setError(error.message);
                 setLoading(false);
             } else if (data.user || data.session) {
-                // 성공 시 Dashboard로 강제 이동 (SPA 내비게이션보다 확실함)
-                window.location.href = '/dashboard';
+                // 성공 시 Dashboard로 이동
+                navigate('/dashboard', { replace: true });
             } else {
                 setLoading(false);
             }

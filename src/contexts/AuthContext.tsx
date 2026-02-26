@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subscription.unsubscribe();
             clearTimeout(safetyTimer);
         };
-    }, [user?.id]);
+    }, []);
 
     const signOut = async () => {
         try {
