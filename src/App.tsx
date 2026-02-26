@@ -333,12 +333,15 @@ const Dashboard: React.FC = () => {
                   </h4>
                   <div className="space-y-6">
                     {section.parts.map((paragraph, pIdx) => (
-                      <div key={pIdx} className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                      <div key={pIdx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                         {paragraph.map((sentence, tIdx) => (
-                          <p key={tIdx} className={`text-slate-700 leading-relaxed mb-2 last:mb-0 ${sentence.isImportant ? 'font-bold text-indigo-700' : ''}`}>
+                          <div key={tIdx} className={`text-slate-700 leading-relaxed mb-3 last:mb-0 ${sentence.isImportant ? 'font-bold text-indigo-700' : ''}`}>
                             {sentence.isImportant && <span className="inline-block mr-2 text-indigo-500">●</span>}
-                            {sentence.text}
-                          </p>
+                            <div
+                              className="inline"
+                              dangerouslySetInnerHTML={{ __html: sentence.text.replace(/\n/g, '<br />') }}
+                            />
+                          </div>
                         ))}
                       </div>
                     ))}

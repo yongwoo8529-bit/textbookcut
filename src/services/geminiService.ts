@@ -246,8 +246,8 @@ export const getStudyGuide = async (
       });
       concepts = sampled;
     } else {
-      // 일반 과목은 중요도 순 TOP 12
-      concepts = concepts.slice(0, 12);
+      // 일반 과목은 중요도 순 TOP 25 (내용을 더 풍부하게 하기 위해 증가)
+      concepts = concepts.slice(0, 25);
     }
 
     // exam_trap_points 조회
@@ -545,4 +545,83 @@ export const createStudyChat = (context: string) => {
       };
     }
   };
+};
+
+/**
+ * 관리자용: 특정 개념을 가르치고 DB에 저장 (AI 분석 기반)
+ */
+export const learnAndSaveConcept = async (subject: string, conceptName: string): Promise<void> => {
+  if (!GROQ_API_KEY) throw new Error("API 키가 없습니다.");
+
+  const prompt = `당신은 대한민국 모의고사 분석 전문가입니다.
+'${conceptName}'(${subject}) 개념에 대해 다음 정보를 상세히 생성하여 JSON으로 응답하세요.
+
+{
+  "description": "중학생도 이해할 수 있는 상세한 개념 설명 (5문장 이상)",
+  "importance": "A",
+  "formula": "공식이 있다면 수식, 없다면 null",
+  "key_terms": "해당 개념과 연관된 핵심 용어 3-4개 (콤마로 구분)",
+  "logic": {
+    "context": "이 개념이 모의고사 문제에서 어떤 상황으로 등장하는지",
+    "reasoning": "문제를 풀기 위해 학생이 해야 하는 사고 과정",
+    "type": "옳은_것_고르기"
+  },
+  "trap": {
+    "title": "대표적 함정 명칭",
+    "mistake": "학생들이 자주 하는 실수",
+    "correct": "실수를 방지하는 올바른 접근법"
+  }
+}`;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3
+    })
+  });
+
+  if (!response.ok) throw new Error("AI 분석 실패");
+
+  const result = await response.json();
+  const data = JSON.parse(result.choices[0].message.content);
+
+  // 1. must_know_core 저장
+  const { data: cRow, error: cErr } = await supabase.from('must_know_core').insert({
+    subject,
+    title: conceptName,
+    description: data.description,
+    importance: data.importance,
+    formula: data.formula,
+    key_terms: data.key_terms,
+    education_level: 'middle_3'
+  }).select().single();
+
+  if (cErr) throw cErr;
+
+  // 2. appearance_logic 저장
+  await supabase.from('appearance_logic').insert({
+    concept_id: cRow.id,
+    condition_context: data.logic.context,
+    reasoning_required: data.logic.reasoning,
+    question_type: data.logic.type,
+    frequency_weight: 5,
+    test_frequency: 10
+  });
+
+  // 3. trap 저장
+  await supabase.from('exam_trap_points').insert({
+    concept_id: cRow.id,
+    title: data.trap.title,
+    common_mistake: data.trap.mistake,
+    correct_concept: data.trap.correct,
+    explanation: "AI 전략 전문가가 분석한 함정 포인트입니다.",
+    importance: 'A'
+  });
 };
