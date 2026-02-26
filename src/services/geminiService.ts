@@ -57,143 +57,58 @@ const TREND_KNOWLEDGE_2025 = `
 `;
 
 /**
- * 교과서 본문 초안 자동 생성 (Groq API 사용 - Llama 모델)
+ * 개념에 대한 분석 초안 생성 (AI 분석 기반)
  */
-export const generateTextbookDraft = async (
-  publisher: string,
-  subject: string,
-  grade: string,
-  unitTitle: string
-): Promise<string> => {
-  if (!GROQ_API_KEY) {
-    throw new Error("API 키가 설정되지 않았습니다. Vercel 환경변수에 VITE_GROQ_API_KEY를 등록해 주세요.");
+export const generateConceptDraft = async (subject: string, conceptName: string): Promise<any> => {
+  if (!GROQ_API_KEY) throw new Error("API 키가 설정되지 않았습니다.");
+
+  const prompt = `당신은 대한민국 고1 3월 모의고사 전략 분석 전문가입니다.
+'${conceptName}'(${subject}) 개념이 고1 3월 모의고사(최근 5개년: 2021-2025)에서 어떻게 다뤄지는지 분석하여 다음 JSON 형식으로 응답하세요.
+
+{
+  "description": "중학생도 이해할 수 있는 상세한 개념 설명 (5문장 이상)",
+  "importance": "A",
+  "formula": "공식이 있다면 수식, 없다면 null",
+  "key_terms": "해당 개념과 연관된 핵심 용어 3-4개 (콤마로 구분)",
+  "logic": {
+    "context": "이 개념이 모의고사 문제에서 어떤 상황(지문, 조건)으로 등장하는지",
+    "reasoning": "문제를 풀기 위해 학생이 거쳐야 하는 핵심 사고 과정",
+    "type": "옳은_것_고르기"
+  },
+  "trap": {
+    "title": "대표적 함정 명칭",
+    "mistake": "학생들이 자주 하는 실수 또는 오개념",
+    "correct": "실수를 방지하는 올바른 접근법 및 판단 기준"
+  }
+}`;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [{
+        role: "system",
+        content: "당신은 고1 3월 모의고사 5개년 트렌드를 꿰뚫고 있는 초정밀 전략 분석가입니다. 모든 응답은 데이터에 기반해야 합니다."
+      }, {
+        role: "user",
+        content: prompt
+      }],
+      response_format: { type: "json_object" },
+      temperature: 0.3
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(`AI 분석 실패: ${err.error?.message || 'Unknown'}`);
   }
 
-  const prompt = `당신은 대한민국 2015 개정 교육과정 전문 집필가입니다.
-다음 정보를 바탕으로 실제 교과서 대단원 전체를 아우르는 풍부하고 상세한 본문 텍스트를 작성해 주세요.
-
-[정보]
-- 출판사: ${publisher}
-- 과목: ${subject}
-- 학년: ${grade}
-- 대단원: ${unitTitle}
-
-[지침]
-1. 해당 대단원에 포함된 모든 핵심 개념, 실험, 원리를 빠짐없이 매우 상세하게 서술하십시오.
-2. 중학생이 이해하기 쉬우면서도 학술적으로 정확한 교과서 특유의 문체를 유지하십시오.
-3. 소단원별로 제목을 붙이고 내용을 전개하십시오.
-4. 중요한 용어나 정의는 강조하여 기술하십시오.
-5. 마치 실제 ${publisher} 교과서의 해당 단원을 그대로 옮겨놓은 듯한 퀄리티로 작성하십시오.
-
-본문 텍스트만 출력하십시오. (부연 설명 제외)`;
-
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: "당신은 대한민국 2015 개정 교육과정 교과서 전문 집필가입니다. 정확하고 풍부한 교과서 본문을 작성합니다." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 8000
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMsg = errorData?.error?.message || JSON.stringify(errorData);
-      console.error("Groq Draft API Error:", errorMsg);
-      throw new Error(`AI 생성 오류: ${errorMsg}`);
-    }
-
-    const result = await response.json();
-    const text = result.choices?.[0]?.message?.content;
-
-    if (!text) {
-      throw new Error("AI가 빈 응답을 반환했습니다. 다시 시도해 주세요.");
-    }
-
-    return text;
-  } catch (error: any) {
-    console.error("Draft Generation Error:", error);
-    if (error.message?.startsWith("AI") || error.message?.startsWith("API")) {
-      throw error;
-    }
-    throw new Error(`AI 생성 실패: ${error.message}`);
-  }
-};
-
-/**
- * 추가 내용을 보충 생성 (Groq API) - 기존 본문은 유지하고 추가 부분만 생성
- */
-export const refineTextbookDraft = async (
-  existingContent: string,
-  additionalNotes: string
-): Promise<string> => {
-  if (!GROQ_API_KEY) {
-    throw new Error("API 키가 설정되지 않았습니다.");
-  }
-
-  // 기존 본문의 마지막 500자만 참고용으로 전달 (API 부하 최소화)
-  const contextSnippet = existingContent.length > 500
-    ? '...' + existingContent.slice(-500)
-    : existingContent;
-
-  const prompt = `교과서 본문의 끝 부분 맥락:
-"""
-${contextSnippet}
-"""
-
-관리자 요청: ${additionalNotes}
-
-위 맥락에 이어서, 관리자가 요청한 내용을 교과서 본문 스타일로 상세하게 작성하십시오.
-- 기존 본문과 문체를 통일하십시오.
-- 요청된 내용만 집중적으로 서술하십시오.
-- 불필요한 서론이나 반복 없이 바로 본론을 작성하십시오.`;
-
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: "당신은 교과서 편집 전문가입니다. 요청된 보충 내용을 교과서 문체로 작성합니다." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 4000
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`AI 보충 오류: ${errorData?.error?.message || 'Unknown'}`);
-    }
-
-    const result = await response.json();
-    const supplementalText = result.choices?.[0]?.message?.content;
-
-    if (!supplementalText) {
-      throw new Error("AI가 빈 응답을 반환했습니다. 다시 시도해 주세요.");
-    }
-
-    // 기존 본문 + 보충 내용 합치기
-    return existingContent.trimEnd() + '\n\n' + supplementalText.trim();
-  } catch (error: any) {
-    console.error("Refine Error:", error);
-    if (error.message?.startsWith("AI")) throw error;
-    throw new Error(`AI 보충 실패: ${error.message}`);
-  }
+  const result = await response.json();
+  return JSON.parse(result.choices[0].message.content);
 };
 
 
@@ -551,46 +466,7 @@ export const createStudyChat = (context: string) => {
  * 관리자용: 특정 개념을 가르치고 DB에 저장 (AI 분석 기반)
  */
 export const learnAndSaveConcept = async (subject: string, conceptName: string): Promise<void> => {
-  if (!GROQ_API_KEY) throw new Error("API 키가 없습니다.");
-
-  const prompt = `당신은 대한민국 모의고사 분석 전문가입니다.
-'${conceptName}'(${subject}) 개념에 대해 다음 정보를 상세히 생성하여 JSON으로 응답하세요.
-
-{
-  "description": "중학생도 이해할 수 있는 상세한 개념 설명 (5문장 이상)",
-  "importance": "A",
-  "formula": "공식이 있다면 수식, 없다면 null",
-  "key_terms": "해당 개념과 연관된 핵심 용어 3-4개 (콤마로 구분)",
-  "logic": {
-    "context": "이 개념이 모의고사 문제에서 어떤 상황으로 등장하는지",
-    "reasoning": "문제를 풀기 위해 학생이 해야 하는 사고 과정",
-    "type": "옳은_것_고르기"
-  },
-  "trap": {
-    "title": "대표적 함정 명칭",
-    "mistake": "학생들이 자주 하는 실수",
-    "correct": "실수를 방지하는 올바른 접근법"
-  }
-}`;
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    })
-  });
-
-  if (!response.ok) throw new Error("AI 분석 실패");
-
-  const result = await response.json();
-  const data = JSON.parse(result.choices[0].message.content);
+  const data = await generateConceptDraft(subject, conceptName);
 
   // 1. must_know_core 저장
   const { data: cRow, error: cErr } = await supabase.from('must_know_core').insert({

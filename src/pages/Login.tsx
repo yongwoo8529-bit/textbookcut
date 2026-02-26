@@ -16,7 +16,7 @@ const Login: React.FC = () => {
     // 이미 로그인된 유저는 대시보드로 리다이렉트
     useEffect(() => {
         if (user && !authLoading) {
-            navigate('/dashboard', { replace: true });
+            navigate('/', { replace: true });
         }
     }, [user, authLoading, navigate]);
 
@@ -39,7 +39,7 @@ const Login: React.FC = () => {
                 setLoading(false);
             } else if (data.user || data.session) {
                 // 성공 시 Dashboard로 이동
-                navigate('/dashboard', { replace: true });
+                navigate('/', { replace: true });
             } else {
                 setLoading(false);
             }

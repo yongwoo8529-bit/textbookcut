@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book, Sparkles, RefreshCw } from 'lucide-react';
-import { generateTextbookDraft, refineTextbookDraft } from '../services/geminiService';
+import { Database, Plus, Loader2, Save, AlertCircle, CheckCircle2, FileText, ListOrdered, Book, Sparkles, RefreshCw, Settings } from 'lucide-react';
+import { generateConceptDraft } from '../services/geminiService';
 
 const AdminCollect: React.FC = () => {
     const { role } = useAuth();
@@ -17,58 +17,50 @@ const AdminCollect: React.FC = () => {
         }
     }, [role, navigate]);
 
-    const [publisher, setPublisher] = useState('');
-    const [grade, setGrade] = useState('1학년');
-    const [subject, setSubject] = useState('');
-    const [unitTitle, setUnitTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [additionalNotes, setAdditionalNotes] = useState('');
+    const [subject, setSubject] = useState('국어');
+    const [conceptName, setConceptName] = useState('');
+    const [importance, setImportance] = useState('A');
+    const [description, setDescription] = useState('');
+    const [formula, setFormula] = useState('');
+    const [keyTerms, setKeyTerms] = useState('');
+
+    const [logicContext, setLogicContext] = useState('');
+    const [logicReasoning, setLogicReasoning] = useState('');
+    const [logicType, setLogicType] = useState('옳은_것_고르기');
+
+    const [trapTitle, setTrapTitle] = useState('');
+    const [trapMistake, setTrapMistake] = useState('');
+    const [trapCorrect, setTrapCorrect] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [genLoading, setGenLoading] = useState(false);
-    const [refineLoading, setRefineLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     const handleAIGenerate = async () => {
-        if (!publisher || !subject || !unitTitle) {
-            setStatus({ type: 'error', message: '출판사, 과목, 단원 제목을 먼저 입력해 주세요.' });
+        if (!conceptName) {
+            setStatus({ type: 'error', message: '개념 이름을 먼저 입력해 주세요.' });
             return;
         }
 
         setGenLoading(true);
         setStatus(null);
         try {
-            const draft = await generateTextbookDraft(publisher, subject, grade, unitTitle);
-            setContent(draft);
-            setStatus({ type: 'success', message: 'AI가 본문 초안을 생성했습니다. 내용을 확인하고 필요한 부분을 수정해 주세요.' });
+            const data = await generateConceptDraft(subject, conceptName);
+            setDescription(data.description);
+            setImportance(data.importance);
+            setFormula(data.formula || '');
+            setKeyTerms(data.key_terms || '');
+            setLogicContext(data.logic.context);
+            setLogicReasoning(data.logic.reasoning);
+            setLogicType(data.logic.type);
+            setTrapTitle(data.trap.title);
+            setTrapMistake(data.trap.mistake);
+            setTrapCorrect(data.trap.correct);
+            setStatus({ type: 'success', message: 'AI가 필드 내용을 생성했습니다. 내용을 확인하고 수정해 주세요.' });
         } catch (err: any) {
             setStatus({ type: 'error', message: err.message });
         } finally {
             setGenLoading(false);
-        }
-    };
-
-    const handleRefine = async () => {
-        if (!content.trim()) {
-            setStatus({ type: 'error', message: '먼저 AI로 본문을 생성해 주세요.' });
-            return;
-        }
-        if (!additionalNotes.trim()) {
-            setStatus({ type: 'error', message: '추가할 내용을 입력해 주세요.' });
-            return;
-        }
-
-        setRefineLoading(true);
-        setStatus(null);
-        try {
-            const refined = await refineTextbookDraft(content, additionalNotes);
-            setContent(refined);
-            setAdditionalNotes('');
-            setStatus({ type: 'success', message: 'AI가 추가 내용을 본문에 통합했습니다.' });
-        } catch (err: any) {
-            setStatus({ type: 'error', message: err.message });
-        } finally {
-            setRefineLoading(false);
         }
     };
 
@@ -78,69 +70,53 @@ const AdminCollect: React.FC = () => {
         setStatus(null);
 
         try {
-            // 1. Get or Create Textbook
-            let { data: textbook, error: tError } = await supabase
-                .from('textbooks')
-                .select('id')
-                .eq('publisher', publisher)
-                .eq('grade', grade)
-                .eq('subject', subject)
-                .maybeSingle();
+            // 1. must_know_core 저장
+            const { data: conceptRow, error: cErr } = await supabase.from('must_know_core').insert({
+                subject,
+                title: conceptName,
+                description,
+                importance,
+                formula: formula || null,
+                key_terms: keyTerms || null,
+                education_level: 'middle_3'
+            }).select().single();
 
-            if (tError) throw tError;
+            if (cErr) throw cErr;
 
-            if (!textbook) {
-                const { data: newT, error: nTError } = await supabase
-                    .from('textbooks')
-                    .insert({ publisher, grade, subject, school_level: '중학교', curriculum: '2015' })
-                    .select()
-                    .single();
-                if (nTError) throw nTError;
-                textbook = newT;
-            }
+            // 2. appearance_logic 저장
+            const { error: lErr } = await supabase.from('appearance_logic').insert({
+                concept_id: conceptRow.id,
+                condition_context: logicContext,
+                reasoning_required: logicReasoning,
+                question_type: logicType,
+                frequency_weight: 5,
+                test_frequency: 10
+            });
 
-            // 2. Get or Create Unit
-            let { data: unit, error: uError } = await supabase
-                .from('units')
-                .select('id')
-                .eq('textbook_id', textbook.id)
-                .eq('main_unit_name', unitTitle)
-                .maybeSingle();
+            if (lErr) throw lErr;
 
-            if (uError) throw uError;
+            // 3. exam_trap_points 저장
+            const { error: tErr } = await supabase.from('exam_trap_points').insert({
+                concept_id: conceptRow.id,
+                title: trapTitle,
+                common_mistake: trapMistake,
+                correct_concept: trapCorrect,
+                explanation: "관리자가 직접 수집한 함정 포인트입니다.",
+                importance: 'A'
+            });
 
-            if (!unit) {
-                const { data: newU, error: nUError } = await supabase
-                    .from('units')
-                    .insert({ textbook_id: textbook.id, main_unit_name: unitTitle })
-                    .select()
-                    .single();
-                if (nUError) throw nUError;
-                unit = newU;
-            }
-
-            // 3. Insert Content Chunk (merge AI content + manual additions)
-            const finalText = additionalNotes.trim()
-                ? `${content}
-
-[관리자 추가 내용]
-${additionalNotes}`
-                : content;
-
-            const { error: cError } = await supabase
-                .from('content_chunks')
-                .insert({
-                    unit_id: unit.id,
-                    page_number: 1,
-                    raw_text: finalText,
-                    is_important: false
-                });
-
-            if (cError) throw cError;
+            if (tErr) throw tErr;
 
             setStatus({ type: 'success', message: '데이터가 성공적으로 저장되었습니다!' });
-            setContent('');
-            setAdditionalNotes('');
+            setConceptName('');
+            setDescription('');
+            setFormula('');
+            setKeyTerms('');
+            setLogicContext('');
+            setLogicReasoning('');
+            setTrapTitle('');
+            setTrapMistake('');
+            setTrapCorrect('');
         } catch (err: any) {
             console.error(err);
             setStatus({ type: 'error', message: err.message || '저장 중 오류가 발생했습니다.' });
@@ -156,12 +132,12 @@ ${additionalNotes}`
             <div className="max-w-4xl mx-auto">
                 <header className="mb-12 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-red-600 rounded-2xl shadow-lg ring-4 ring-red-50">
-                            <Database className="text-white w-8 h-8" />
+                        <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg ring-4 ring-indigo-50">
+                            <Sparkles className="text-white w-8 h-8" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">컨텐츠 수집소</h1>
-                            <p className="text-slate-500 font-medium">관리자 권한: 교과서 데이터베이스 관리</p>
+                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">개념 수집소</h1>
+                            <p className="text-slate-500 font-medium">관리자 권한: 5개년 기출 개념 데이터베이스 관리</p>
                         </div>
                     </div>
                 </header>
@@ -173,107 +149,180 @@ ${additionalNotes}`
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <Book className="w-3 h-3" /> 출판사
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            placeholder="예: 비상교육"
-                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
-                                            value={publisher}
-                                            onChange={(e) => setPublisher(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                            <FileText className="w-3 h-3" /> 학년
+                                            <Book className="w-3 h-3" /> 과목
                                         </label>
                                         <select
                                             className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
-                                            value={grade}
-                                            onChange={(e) => setGrade(e.target.value)}
+                                            value={subject}
+                                            onChange={(e) => setSubject(e.target.value)}
                                         >
-                                            <option>1학년</option>
-                                            <option>2학년</option>
-                                            <option>3학년</option>
+                                            <option>국어</option>
+                                            <option>수학</option>
+                                            <option>영어</option>
+                                            <option>사회</option>
+                                            <option>과학</option>
+                                            <option>한국사</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <FileText className="w-3 h-3" /> 중요도
+                                        </label>
+                                        <select
+                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
+                                            value={importance}
+                                            onChange={(e) => setImportance(e.target.value)}
+                                        >
+                                            <option>A</option>
+                                            <option>B</option>
+                                            <option>C</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">과목</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="예: 과학, 역사"
-                                        className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
-                                        value={subject}
-                                        onChange={(e) => setSubject(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <ListOrdered className="w-3 h-3" /> 단원 제목
+                                        <Plus className="w-3 h-3" /> 개념 이름
                                     </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="예: 1단원 지권의 변화"
-                                        className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
-                                        value={unitTitle}
-                                        onChange={(e) => setUnitTitle(e.target.value)}
-                                    />
-                                </div>
-
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between ml-1">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">본문 내용</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="예: 운율, 이차함수"
+                                            className="flex-1 px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-slate-800"
+                                            value={conceptName}
+                                            onChange={(e) => setConceptName(e.target.value)}
+                                        />
                                         <button
                                             type="button"
                                             onClick={handleAIGenerate}
                                             disabled={genLoading || loading}
-                                            className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                                            className="px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all flex items-center gap-2 disabled:bg-slate-300"
                                         >
-                                            {genLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                                            AI로 본문 자동 생성 (대단원 기준)
+                                            {genLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                            AI 생성
                                         </button>
                                     </div>
-                                    <textarea
-                                        required
-                                        rows={12}
-                                        placeholder="AI로 자동 생성하거나 페이지의 원본 텍스트를 입력하세요..."
-                                        className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
-                                        value={content}
-                                        onChange={(e) => setContent(e.target.value)}
-                                    />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        ✏️ 추가/수정 내용
-                                    </label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">상세 설명</label>
                                     <textarea
-                                        rows={4}
-                                        placeholder="보충하고 싶은 내용을 입력하세요. (예: '광합성 실험 과정을 더 자세히 설명해줘', '핵분열과 핵융합 비교표 추가해줘')"
-                                        className="w-full px-5 py-4 bg-amber-50 border-2 border-amber-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
-                                        value={additionalNotes}
-                                        onChange={(e) => setAdditionalNotes(e.target.value)}
+                                        required
+                                        rows={6}
+                                        placeholder="개념의 핵심 내용을 설명해 주세요..."
+                                        className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700 leading-relaxed"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={handleRefine}
-                                        disabled={refineLoading || !additionalNotes.trim() || !content.trim()}
-                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.98] disabled:bg-amber-200"
-                                    >
-                                        {refineLoading ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <RefreshCw className="w-4 h-4" />
-                                        )}
-                                        AI에게 본문에 통합 요청
-                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">공식 (선택)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="예: y = ax^2 + bx + c"
+                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold"
+                                            value={formula}
+                                            onChange={(e) => setFormula(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">핵심 용어</label>
+                                        <input
+                                            type="text"
+                                            placeholder="예: 꼭짓점, 축의 방정식"
+                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold"
+                                            value={keyTerms}
+                                            onChange={(e) => setKeyTerms(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-slate-100 pt-6 space-y-6">
+                                    <h2 className="text-sm font-black text-indigo-600 flex items-center gap-2">
+                                        <Settings className="w-4 h-4" /> 출제 로직 (Appearance Logic)
+                                    </h2>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">문제 형식</label>
+                                            <select
+                                                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold"
+                                                value={logicType}
+                                                onChange={(e) => setLogicType(e.target.value)}
+                                            >
+                                                <option>옳은_것_고르기</option>
+                                                <option>틀린_것_고르기</option>
+                                                <option>빈_칸_채우기</option>
+                                                <option>숫자_계산</option>
+                                                <option>표_해석</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">출제 상황</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="예: 지문의 마지막 문단에서"
+                                                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold"
+                                                value={logicContext}
+                                                onChange={(e) => setLogicContext(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">필요 사고 과정 (Reasoning)</label>
+                                        <textarea
+                                            required
+                                            rows={3}
+                                            placeholder="문제를 풀기 위해 학생이 거쳐야 하는 논리 단계를 적어주세요..."
+                                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                                            value={logicReasoning}
+                                            onChange={(e) => setLogicReasoning(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-slate-100 pt-6 space-y-6">
+                                    <h2 className="text-sm font-black text-rose-600 flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4" /> 빈출 함정 (Exam Traps)
+                                    </h2>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">함정 명칭</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="예: 닮음비와 넓이비의 혼동"
+                                            className="w-full px-5 py-4 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-400 focus:bg-white outline-none transition-all font-bold"
+                                            value={trapTitle}
+                                            onChange={(e) => setTrapTitle(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">자주 하는 실수</label>
+                                            <textarea
+                                                required
+                                                rows={3}
+                                                placeholder="학생들이 흔히 착각하는 내용..."
+                                                className="w-full px-5 py-4 bg-rose-50 border-2 border-rose-100 rounded-2xl focus:border-rose-400 focus:bg-white outline-none transition-all font-medium"
+                                                value={trapMistake}
+                                                onChange={(e) => setTrapMistake(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">올바른 판단 기준</label>
+                                            <textarea
+                                                required
+                                                rows={3}
+                                                placeholder="실수를 피하기 위한 핵심 포인트..."
+                                                className="w-full px-5 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl focus:border-emerald-400 focus:bg-white outline-none transition-all font-medium"
+                                                value={trapCorrect}
+                                                onChange={(e) => setTrapCorrect(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {status && (
@@ -308,15 +357,15 @@ ${additionalNotes}`
                             <ul className="space-y-4 text-indigo-100 text-sm font-medium leading-relaxed">
                                 <li className="flex gap-2">
                                     <span className="text-white font-black">•</span>
-                                    출판사, 학년, 과목이 일치하는 경우 기존 교과서 데이터에 자동 연결됩니다.
+                                    개념 데이터는 중학교 3개학년 전체를 대상으로 수집합니다.
                                 </li>
                                 <li className="flex gap-2">
                                     <span className="text-white font-black">•</span>
-                                    단원명이 다르면 새로운 단원을 생성합니다.
+                                    출제 로직은 5개년 기출 경향을 반영하여 AI가 초안을 잡습니다.
                                 </li>
                                 <li className="flex gap-2">
                                     <span className="text-white font-black">•</span>
-                                    본문 내용은 AI가 분석할 때 핵심 소스가 되므로 정확하게 입력해 주세요.
+                                    함정 포인트는 실제 학생들이 가장 많이 실수하는 내용을 위주로 입력해 주세요.
                                 </li>
                             </ul>
                         </div>
