@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen, Sparkles, Loader2, ArrowRight, GraduationCap, Send,
   MessageCircle, Building2, RotateCcw, CheckCircle2, BadgeCheck, List,
@@ -93,45 +93,62 @@ const Navbar: React.FC = () => {
 };
 const LandingPage: React.FC = () => {
   const { user, role, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user && role === 'admin') {
+      navigate('/admin/collect', { replace: true });
+    }
+  }, [user, role, navigate]);
 
   if (import.meta.env.DEV) {
     console.log('DEBUG: LandingPage rendered, user:', user ? user.email : 'null');
   }
   return (
     <main className="max-w-4xl w-full px-4 py-20 flex-1 mx-auto text-center animate-in fade-in zoom-in duration-500">
-      <div className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 uppercase tracking-widest">
-        Authentication Required
-      </div>
-      <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
-        모의고사 대비를 하기위해<br />로그인이 필요합니다
-      </h2>
-      <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
-        회원가입 후 AI Tutor와 함께 15개정 교육과정의 핵심을 관통하는 최상의 학습 가이드를 만나보세요.
-      </p>
       {user ? (
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          {role === 'admin' ? (
-            <Link to="/admin/collect" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
-              <Database className="w-5 h-5" />
-              데이터 수집소 입장하기
-            </Link>
-          ) : (
-            <div className="bg-slate-100 text-slate-500 px-8 py-4 rounded-2xl text-lg font-bold">
-              가이드 준비 중입니다
-            </div>
-          )}
-        </div>
+        <>
+          <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+            전략 가이드에 오신 것을 환영합니다!
+          </h2>
+          <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
+            {role === 'admin' ? '관리자님, 새로운 개념을 수집하거나 기출 데이터를 분석할 수 있습니다.' : '학습 가이드가 준비되는 동안 조금만 기다려주세요.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {role === 'admin' ? (
+              <Link to="/admin/collect" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
+                <Database className="w-5 h-5" />
+                데이터 수집소 입장하기
+              </Link>
+            ) : (
+              <div className="bg-slate-100 text-slate-500 px-8 py-4 rounded-2xl text-lg font-bold">
+                가이드 준비 중입니다
+              </div>
+            )}
+          </div>
+        </>
       ) : (
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/signup" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            무료로 시작하기
-          </Link>
-          <Link to="/login" className="bg-white text-slate-700 border border-slate-200 px-8 py-4 rounded-2xl text-lg font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-            <LogIn className="w-5 h-5" />
-            이미 계정이 있나요?
-          </Link>
-        </div >
+        <>
+          <div className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 uppercase tracking-widest">
+            Authentication Required
+          </div>
+          <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+            모의고사 대비를 하기위해<br />로그인이 필요합니다
+          </h2>
+          <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
+            회원가입 후 AI Tutor와 함께 15개정 교육과정의 핵심을 관통하는 최상의 학습 가이드를 만나보세요.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/signup" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              무료로 시작하기
+            </Link>
+            <Link to="/login" className="bg-white text-slate-700 border border-slate-200 px-8 py-4 rounded-2xl text-lg font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+              <LogIn className="w-5 h-5" />
+              이미 계정이 있나요?
+            </Link>
+          </div>
+        </>
       )}
     </main>
   );
