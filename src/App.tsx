@@ -537,21 +537,22 @@ const App: React.FC = () => {
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
 
-  // --- [새로운 요구사항] 링크 접속 시 자동 로그아웃 로직 ---
+  // --- [요구사항] 링크 접속 시(첫 진입) 자동 로그아웃 로직 ---
   useEffect(() => {
-    // 세션 스토리지가 아닌 로컬 스토리지를 사용하여 브라우저가 완전히 닫혀도 '방문 이력'을 관리
-    // 단, '첫 진입' 판단을 위해 현재 탭 세션도 참고
-    const hasVisitedThisSession = sessionStorage.getItem('textbookcut_active_session');
+    if (loading) return; // 인증 정보 로딩이 끝날 때까지 대기
+
+    const hasCheckedEntry = sessionStorage.getItem('textbookcut_entry_checked');
     const isRootPath = window.location.pathname === '/';
 
-    if (!hasVisitedThisSession && isRootPath) {
+    if (!hasCheckedEntry && isRootPath) {
       if (user) {
-        console.log('DEBUG: Fresh session detected on root, forcing logout.');
+        console.log('DEBUG: Fresh session detected on root with user, forcing logout.');
         signOut();
       }
-      sessionStorage.setItem('textbookcut_active_session', 'true');
+      // 로그아웃을 시도했든 유저가 없었든, 이번 세션의 첫 집입 체크는 완료됨을 기록
+      sessionStorage.setItem('textbookcut_entry_checked', 'true');
     }
-  }, [user, signOut]);
+  }, [loading, user, signOut]);
 
   // 로딩 중에는 빈 화면 표시 (user 상태가 확정될 때까지 대기)
   if (loading) {
