@@ -116,6 +116,34 @@ const LandingPage: React.FC = () => {
     setChatSession(null);
   };
 
+  // --- 통합 홈 화면 UI (Hero + Dashboard/Auth) ---
+  const HeroSection = () => (
+    <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-black mb-6 border border-indigo-100 animate-bounce">
+        ✨ 3모 고득점 전략 가이드 준비 중
+      </div>
+      <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+        실전 대비: 5개년(2021-2025) 초정밀 전략 분석
+      </h2>
+      <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
+        최근 5개년 핵심 트렌드와 전문가의 실전 노하우를 결합하여<br />
+        당신만을 위한 최상의 합격 시나리오를 만나보세요.
+      </p>
+    </div>
+  );
+
+  const ResetButton = () => (
+    <div className="flex justify-end mb-6">
+      <button
+        onClick={handleReset}
+        className="px-4 py-2 text-sm text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-2 bg-white rounded-lg border border-slate-200 hover:border-indigo-200 transition-all"
+      >
+        <RotateCcw className="w-4 h-4" />
+        새로운 주제 분석하기
+      </button>
+    </div>
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (result) return;
@@ -186,15 +214,7 @@ const LandingPage: React.FC = () => {
   if (!user && !authLoading) {
     return (
       <main className="max-w-4xl w-full px-4 py-20 flex-1 mx-auto text-center animate-in fade-in zoom-in duration-500">
-        <div className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-full border border-indigo-100 uppercase tracking-widest">
-          Authentication Required
-        </div>
-        <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
-          모의고사 대비를 하기위해<br />로그인이 필요합니다
-        </h2>
-        <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
-          회원가입 후 AI Tutor와 함께 15개정 교육과정의 핵심을 관통하는 최상의 학습 가이드를 만나보세요.
-        </p>
+        <HeroSection />
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link to="/signup" className="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2">
             <UserPlus className="w-5 h-5" />
@@ -220,20 +240,9 @@ const LandingPage: React.FC = () => {
         </div>
       )}
 
-      {!result && !loading && (
-        <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-black mb-6 border border-indigo-100 animate-bounce">
-            ✨ 3모 고득점 전략 가이드 준비 중
-          </div>
-          <h2 className="text-4xl font-extrabold text-slate-900 mb-4">
-            실전 대비: 5개년(2021-2025) 초정밀 전략 분석
-          </h2>
-          <p className="text-slate-500 text-lg max-w-lg mx-auto">
-            최근 5개년 핵심 트렌드와 전문가의 실전 노하우를 결합하여<br />
-            당신만을 위한 최상의 합격 시나리오를 생성합니다.
-          </p>
-        </div>
-      )}
+      {!result && !loading && <HeroSection />}
+
+      {result && <ResetButton />}
 
       <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 p-8 border border-slate-100 mb-8">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -526,7 +535,22 @@ const App: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
+
+  // --- [새로운 요구사항] 링크 접속 시 자동 로그아웃 로직 ---
+  // sessionStorage를 사용하여 브라우저 탭을 처음 열 때(또는 사이트 첫 진입 시)만 로그아웃 트리거
+  useEffect(() => {
+    const isFirstEntry = !sessionStorage.getItem('textbookcut_visited');
+    const isRootPath = window.location.pathname === '/';
+
+    if (isFirstEntry && isRootPath) {
+      if (user) {
+        console.log('DEBUG: Fresh entry detected, logging out per user request.');
+        signOut();
+      }
+      sessionStorage.setItem('textbookcut_visited', 'true');
+    }
+  }, [user, signOut]);
 
   // 로딩 중에는 빈 화면 표시 (user 상태가 확정될 때까지 대기)
   if (loading) {
