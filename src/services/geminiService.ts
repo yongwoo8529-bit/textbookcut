@@ -124,251 +124,84 @@ export const getStudyGuide = async (
 ): Promise<SearchResult> => {
   const studentLevel = `${schoolLevel} ${grade}`;
 
-  // 1. DB에서 과목/단원의 핵심 개념 조회 (RAG - appearance_logic 기반)
+  // 1. DB에서 연도별/문항별 상세 분석 데이터 조회 (RAG)
   let textbookContext = "";
   try {
-    // must_know_core + appearance_logic 조인 쿼리
-    let query = supabase
-      .from('must_know_core')
-      .select(`
-        id, title, description, importance, education_level, formula, key_terms, subject,
-        appearance_logic(
-          condition_context, reasoning_required, question_type, frequency_weight, test_frequency
-        )
-      `)
-      .in('education_level', ['middle_1', 'middle_2', 'middle_3']);
+    const { data: granularData, error: granularError } = await supabase
+      .from('mock_questions')
+      .select('*')
+      .eq('subject', subject)
+      .order('year', { ascending: false })
+      .order('question_num', { ascending: true })
+      .limit(40); // 컨텍스트 크기 제한
 
-    // 과목별 그룹 필터링
-    if (subject === '과학' || subject === '과학탐구' || subject.includes('과학')) {
-      query = query.in('subject', ['물리', '화학', '생물', '생명과학', '지구과학', '과학']);
-    } else {
-      query = query.eq('subject', subject);
-    }
+    if (granularError) {
+      console.error('Granular data fetch error:', granularError);
+    } else if (granularData && granularData.length > 0) {
+      let formattedText = `=== [${subject}] 5개년(2021-2025) 전 문항 정밀 분석 데이터 ===\n\n`;
 
-    const { data: allConcepts, error: conceptError } = await query.order('importance', { ascending: false });
-
-    // 데이터 샘플링 최적화: TPM 제한(6000)을 맞추기 위해 엄격한 샘플링
-    let concepts = allConcepts || [];
-    if (subject.includes('과학')) {
-      // 영역별 중요도 순 TOP 4 (총 16-20개 내외)
-      const areas = ['물리', '화학', '생명과학', '지구과학'];
-      const sampled: any[] = [];
-      areas.forEach(area => {
-        const areaItems = concepts.filter(c => c.subject === area || area.includes(c.subject || ''))
-          .sort((a, b) => (b.appearance_logic?.[0]?.frequency_weight || 0) - (a.appearance_logic?.[0]?.frequency_weight || 0))
-          .slice(0, 4);
-        sampled.push(...areaItems);
-      });
-      concepts = sampled;
-    } else {
-      // 일반 과목은 중요도 순 TOP 25 (내용을 더 풍부하게 하기 위해 증가)
-      concepts = concepts.slice(0, 25);
-    }
-
-    // exam_trap_points 조회
-    const { data: trapPoints, error: trapError } = await supabase
-      .from('exam_trap_points')
-      .select('id, concept_id, title, correct_concept, common_mistake, explanation')
-      .in('concept_id', concepts?.map(c => c.id) || []);
-
-    // graph_patterns 조회
-    const { data: graphPatterns, error: graphError } = await supabase
-      .from('graph_patterns')
-      .select('id, concept_id, pattern_name, axis_explanation, interpretation_key, question_type, frequency')
-      .in('concept_id', concepts?.map(c => c.id) || []);
-
-    // calculation_focus 조회
-    const { data: calculations, error: calcError } = await supabase
-      .from('calculation_focus')
-      .select('id, concept_id, formula, calculation_steps, common_calculation_errors, unit_considerations')
-      .in('concept_id', concepts?.map(c => c.id) || []);
-
-    if (conceptError) {
-      console.error('개념 조회 오류:', conceptError);
-    } else if (concepts && concepts.length > 0) {
-      // 텍스트 형식으로 포맷팅
-      let formattedText = '=== 핵심 개념 (appearance_logic 메타데이터 포함) ===\n\n';
-
-      // frequency_weight별로 정렬
-      const sortedConcepts = concepts.sort((a, b) => {
-        const aWeight = a.appearance_logic?.[0]?.frequency_weight || 0;
-        const bWeight = b.appearance_logic?.[0]?.frequency_weight || 0;
-        if (bWeight !== aWeight) return bWeight - aWeight;
-        return (b.importance?.charCodeAt(0) || 0) - (a.importance?.charCodeAt(0) || 0);
-      });
-
-      sortedConcepts.forEach((concept) => {
-        const appLogic = concept.appearance_logic?.[0];
+      granularData.forEach(item => {
         formattedText += `
-[${concept.importance}] ${concept.title}(${concept.subject})
-- 설명: ${concept.description?.substring(0, 100)}
-${concept.formula ? `- 공식: ${concept.formula}` : ''}
-${appLogic ? `- 빈도: ${appLogic.frequency_weight}, 상황: ${appLogic.condition_context}` : ''}
+[${item.year}년 ${item.question_num}번] ${item.title} (중요도: ${item.importance})
+- 선생님의 상세 설명: ${item.concept_explanation}
+- 주의할 함정: ${item.trap_logic}
+- 일타강사 팁: ${item.teacher_tip}
 ---`;
       });
-
-      formattedText += '\n\n=== 함정/그래프/계산 ===\n\n';
-      trapPoints?.slice(0, 10).forEach((trap) => {
-        formattedText += `[함정] ${trap.title}: ${trap.common_mistake}\n`;
-      });
-
-      graphPatterns?.slice(0, 8).forEach((graph) => {
-        formattedText += `[그래프] ${graph.pattern_name}: ${graph.interpretation_key}\n`;
-      });
-
-      calculations?.slice(0, 8).forEach((calc) => {
-        formattedText += `[계산] ${calc.formula}: ${calc.calculation_steps}\n`;
-      });
-
       textbookContext = formattedText;
-      console.log(`최적화된 데이터: 개념 ${concepts.length}개 로드 (TPM 제한 준수)`);
-      console.log(`DB에서 ${concepts.length}개의 개념, ${trapPoints?.length || 0}개의 함정, ${graphPatterns?.length || 0}개의 그래프, ${calculations?.length || 0}개의 계산 데이터를 로드했습니다.`);
-    } else {
-      console.warn("DB에서 과목/교육 수준에 맞는 개념을 찾을 수 없습니다.");
+      console.log(`[RAG] Loaded ${granularData.length} granular question analyses.`);
     }
   } catch (err) {
-    console.warn("DB 개념 조회 실패:", err);
+    console.warn("Granular data retrieval failed:", err);
   }
 
-  const isScience = subject.includes('과학');
-
-  // 관리자 설정 프롬프트 로드 (localStorage는 클라이언트 사이드이므로 getStudyGuide 내에서 접근)
   const savedSystemPrompt = typeof window !== 'undefined' ? localStorage.getItem('admin_system_prompt') : null;
 
   const systemPrompt = savedSystemPrompt || `
-    당신은 고1 3월 모의고사 ${subject} 영역 최고의 전략 전문가입니다.
-    당신의 목표는 단순히 개념을 설명하는 것이 아니라, 학생들에게 '어떻게 합격할 것인가'에 대한 통찰력 있는 전략을 제공하는 것입니다.
-    다음 규칙을 엄격히 준수하여 JSON 형태로만 응답하십시오.
-
-    [핵심 규칙]
-    1. **영역별 4대 분류**: ${isScience ? '1. 물리, 2. 화학, 3. 생명과학, 4. 지구과학' : '교육과정에 맞춘 논리적 1, 2, 3, 4 영역'}으로 정리하십시오.
-    2. **전문가 비책 (expertTips)**: 해당 과목에서만 통하는 실전 팁, 암기 공식, 또는 문제 접근법을 3-5개 제시하십시오.
-    3. **시간 관리 가이드 (timeManagement)**: 시험 시간(100분 등)을 고려하여 이 과목의 문항들을 어떻게 시간 배분해야 하는지 구체적으로 서술하십시오.
-    4. **빈출 함정 알림 (trapAlerts)**: 학생들이 5개년 기출에서 가장 많이 낚였던 함정이나 실수 유형을 3개 이상 설명하십시오.
-    5. **응답**: 한국어로 JSON 형태만 출력.
-  `;
+        당신은 대한민국 최고의 '모의고사 5개년 마스터' 일타 강사입니다. 
+        학생들이 가장 어려워하는 개념을 원리부터 실전 적용까지 '선생님이 칠판에 판서하며 설명하듯' 깊이 있고 친절하게 가르칩니다.
+        
+        [지침]
+        1. **설명 중심**: 단순히 정보를 나열하지 말고, "자, 이 개념은 말이야...", "여기서 조심해야 할 건..." 같은 구어체와 친절한 설명을 듬뿍 담으세요.
+        2. **깊이 있는 분석**: 각 문항의 개념이 왜 중요한지, 실전에서 어떻게 변형되는지 심층적으로 다루세요.
+        3. **중복 금지**: 똑같은 설명을 반복하지 말고, 각 문항과 개념마다 고유한 예시와 분석을 제공하세요.
+        4. **형식**: 반드시 JSON 형태로만 응답하세요.
+    `;
 
   const userPrompt = `
-    ============================================================================
-  [고1 3월 전국연합 모의고사 ${subject} 영역 학습 자료 작성 요청]
-    ============================================================================
+        다음은 2021년부터 2025년까지의 '${subject}' 모의고사 기출 데이터입니다.
+        이 데이터를 바탕으로 학생들이 이번 3월 모의고사를 완벽하게 대비할 수 있도록 "선생님의 특강 노트"를 만들어주세요.
 
-  [학력 / 과목 / 범위]
-    - 학년: ${studentLevel}
-  - 과목: ${subject}
-  - 범위: ${range}
+        [데이터베이스 분석 내용]
+        ${textbookContext || '기출 데이터가 부족합니다. 일반적인 3월 모의고사 출제 경향을 바탕으로 작성해 주세요.'}
 
-  [작성 기준]
-  1. ** 5개년(2021 - 2025) 트렌드 우선 **: DB 데이터 중 5개년 기출 트렌드와 일치하는 항목은 반드시 "🔥 자주 출제되는 유형" 또는 "5개년 최다 빈출"로 강조하십시오.
-    2. ** DB 데이터만 사용 **: 하단의 데이터베이스 조회 결과만 포함하십시오.
-    3. ** education_level 필터 **: 중학교 범위(middle_1, middle_2, middle_3)의 개념만 선택하십시오.
-    4. ** 추측 금지 **: DB에 없는 개념은 절대 추가하지 마십시오.
-    
-    ============================================================================
-  [appearance_logic 처리 규칙 - 매우 중요]
-    ============================================================================
-    
-    다음 규칙을 정확히 따라 frequency_weight별로 구성하십시오:
-    
-    🔥 frequency_weight = 5(거의 항상 출제)
-    → "자주 출제되는 유형" 섹션에 가장 먼저 배치
-    → 제목, 출제 상황(condition_context), 학생 판단(reasoning_required), 문제 형식(question_type) 모두 설명
-    → 상세한 설명(5문장 이상)
-    → 최근 3년 기출 횟수(test_frequency) 명시
-    → 구체적 예시 반드시 포함(2 - 3개)
-    
-    ✅ frequency_weight = 4(자주 출제)
-    → "자주 출제되는 유형" 섹션에 frequency_weight = 5 다음에 배치
-    → 핵심 내용만 정리(3 - 4문장)
-    → 간단한 예시 1개(1 - 2문장)
-    
-    📚 frequency_weight = 3(선택적)
-    → importance = 'A'인 핵심 개념과만 연결하여 포함
-    → "함께 학습하면 좋은 개념" 형식으로 구성
-    → 간단히(2 - 3문장)
-    
-    ❌ frequency_weight = 1~2(드문)
-    → 기본적으로 제외
-    → importance = 'A'인 경우에만 한 줄 언급
+        [구성 요청]
+        1. **5개년 실전 마스터 전략**: 전체적인 출제 트렌드와 반드시 잡아야 할 핵심 전략
+        2. **단원별 심층 강의**: 핵심 개념들의 원리 설명과 실전 적용법 (최대한 풍부하고 자세하게)
+        3. **학생들이 00번 낚이는 함정**: 단골 함정 포인트와 이를 피하는 사고법
+        4. **실전 파이널 팁**: 시험장에서 바로 써먹는 시간 배분 및 문제 풀이 기술
 
-[정렬 기준]
-1순위: frequency_weight DESC(5 → 4 → 3 → 1)
-2순위: importance DESC(A → B → C)
+        반드시 다음 JSON 형식을 유지하십시오 (sections 내의 text는 선생님이 강의하듯 길고 자세하게 작성):
+        {
+          "isValid": true,
+          "sections": [
+            {
+              "title": "제목",
+              "parts": [
+                [
+                  { "text": "강의 제목", "isImportant": true },
+                  { "text": "선생님의 상세한 설명 내용 (매우 풍부하게)...", "isImportant": false }
+                ]
+              ]
+            }
+          ],
+          "keywords": [{ "word": "용어", "meaning": "설명" }],
+          "expertTips": ["비책 1", "비책 2"],
+          "timeManagement": "상세한 시간 관리 전략",
+          "trapAlerts": ["함정 예방 1", "함정 예방 2"]
+        }
+    `;
 
-  ============================================================================
-[필수 출력 구조 - 이 순서대로 구성]
-  ============================================================================
-
-1️⃣ 🔥 자주 출제되는 유형
-       ├─[frequency_weight = 5 항목들]
-       │  ├─ 개념명 및 의미(뜻풀이)
-       │  ├─ 출제 상황/판단/문제 형식
-       │  ├─ 상세 설명 및 예시
-       │  └─ 기출 현황: N회
-       │
-       └─[frequency_weight = 4 항목들]
-          └─ 개념명/핵심정리/예시
-
-2️⃣ 📚 핵심 개념 (정의, 공식, 설명, 중요도)
-
-3️⃣ ⚠️ 자주 틀리는 포인트 (exam_trap_points)
-
-${(subject.includes('과학') || subject === '수학' || subject === '사회') ? `
-4️⃣ 📊 그래프 / 표 해석 포인트 (graph_patterns)
-` : ''}
-
-${(subject.includes('과학') || subject === '수학') ? `
-5️⃣ 🔢 계산형 문제 대비 (calculation_focus)
-` : ''}
-
-  ============================================================================
-[금지 사항]
-  ============================================================================
-- DB에 없는 내용 추측/생성 금지
-- 고1 범위를 넘는 심화 내용 금지
-- 출력 섹션 순서 변경 금지
-- frequency_weight 규칙 엄수
-
-            ============================================================================
-[DB 조회 결과]
-    ${textbookContext || '[경고] DB 조회 결과가 비어있습니다. 일반 지식으로 작성하십시오.'}
-    
-    ============================================================================
-[응답 형식 - Strict JSON]
-  ============================================================================
-    
-    반드시 다음 JSON 형식을 유지하십시오:
-
-{
-  "isValid": true,
-  "sections": [
-    {
-      "title": "1. [영역명]",
-      "parts": [
-        [
-          { "text": "🔥 [핵심유형] 개념명", "isImportant": true },
-          { "text": "상세 설명 및 강의 내용...", "isImportant": false }
-        ]
-      ]
-    }
-  ],
-  "keywords": [
-    { "word": "용어", "meaning": "설명" }
-  ],
-  "examPoints": [
-    "핵심 포인트 1"
-  ],
-  "expertTips": [
-    "전략 전문가의 실전 비책 1",
-    "실전에서 바로 써먹는 팁 2"
-  ],
-  "timeManagement": "시간 배분 안내...",
-  "trapAlerts": [
-    "학생들이 자주 하는 실수 1",
-    "이런 선택지 주의하세요 2"
-  ]
-}
-`;
 
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
