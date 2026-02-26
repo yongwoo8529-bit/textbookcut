@@ -60,6 +60,9 @@ export interface ExamGuideResult {
   sections: StudySection[];
   keywords: Keyword[];
   examPoints: string[];
+  expertTips?: string[];
+  timeManagement?: string;
+  trapAlerts?: string[];
 }
 
 // Compatibility alias

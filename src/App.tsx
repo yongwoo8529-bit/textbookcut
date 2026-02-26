@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-ro
 import {
   BookOpen, Sparkles, Loader2, ArrowRight, GraduationCap, Send,
   MessageCircle, Building2, RotateCcw, CheckCircle2, BadgeCheck, List,
-  LogIn, UserPlus, LogOut, Database, User as UserIcon, Book
+  LogIn, UserPlus, LogOut, Database, User as UserIcon, Book, Settings
 } from 'lucide-react';
 import { getStudyGuide, createStudyChat } from './services/geminiService';
 import { SearchResult } from './types';
@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminCollect from './pages/AdminCollect';
+import AdminConfig from './pages/AdminConfig';
 interface ChatMessage {
   role: 'user' | 'model';
   text: string;
@@ -30,24 +31,30 @@ const Navbar: React.FC = () => {
             <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
               <GraduationCap className="text-white w-5 h-5" />
             </div>
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight">모의고사 대비 사이트</h1>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 고득점 전략 연구소</h1>
           </div>
         ) : (
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="p-2 bg-indigo-600 rounded-lg shadow-indigo-200 shadow-lg">
-              <GraduationCap className="text-white w-5 h-5" />
+              <Sparkles className="text-white w-5 h-5" />
             </div>
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 교과서 압축기</h1>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">3모 고득점 전략 가이드</h1>
           </Link>
         )}
         <div className="flex items-center gap-4">
           {user ? (
             <>
               {role === 'admin' && (
-                <Link to="/admin/collect" className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1.5 rounded-xl border border-red-100 font-bold text-xs hover:bg-red-100 transition-colors">
-                  <Database className="w-3.5 h-3.5" />
-                  관리자 수집
-                </Link>
+                <div className="flex gap-2">
+                  <Link to="/admin/collect" className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1.5 rounded-xl border border-red-100 font-bold text-[10px] hover:bg-red-100 transition-colors">
+                    <Database className="w-3 h-3" />
+                    수집
+                  </Link>
+                  <Link to="/admin/config" className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 font-bold text-[10px] hover:bg-slate-200 transition-colors">
+                    <Settings className="w-3 h-3" />
+                    설정
+                  </Link>
+                </div>
               )}
               <Link to="/dashboard" className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors md:hidden">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -214,17 +221,25 @@ const Dashboard: React.FC = () => {
   }
   return (
     <main className="max-w-4xl w-full px-4 py-12 flex-1 mx-auto">
+      {/* 관리자 공지사항 표시 */}
+      {localStorage.getItem('admin_notice') && (
+        <div className="mb-8 bg-indigo-600 text-white px-6 py-3 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 shadow-lg shadow-indigo-100 font-bold text-sm">
+          <Sparkles className="w-4 h-4 text-indigo-200" />
+          {localStorage.getItem('admin_notice')}
+        </div>
+      )}
+
       {!result && !loading && (
         <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-black mb-6 border border-indigo-100 animate-bounce">
-            💡 실시간 기출 분석 엔진 가동 중
+            🎯 3모 고득점 전략 가이드 가동 중
           </div>
           <h2 className="text-4xl font-extrabold text-slate-900 mb-4">
-            3모 완성: 5개년(2021-2025) 정밀 분석
+            실전 대비: 5개년(2021-2025) 초정밀 전략 분석
           </h2>
           <p className="text-slate-500 text-lg max-w-lg mx-auto">
-            최근 5개년 기출 트렌드와 중학교 핵심 개념을 완벽 분석하여<br />
-            당신만을 위한 고득점 전략 가이드를 생성합니다.
+            최근 5개년 핵심 트렌드와 전문가의 실전 노하우를 결합하여<br />
+            당신만을 위한 최상의 합격 시나리오를 생성합니다.
           </p>
         </div>
       )}
@@ -302,10 +317,10 @@ const Dashboard: React.FC = () => {
             <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-8 py-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BadgeCheck className="text-indigo-200 w-6 h-6" />
-                <h3 className="text-xl font-bold text-white">5개년(2021-2025) 트렌드 분석 가이드</h3>
+                <h3 className="text-xl font-bold text-white">5개년(2021-2025) 실전 전략 가이드</h3>
               </div>
-              <span className="bg-indigo-500/50 text-indigo-50 px-3 py-1 rounded-full text-xs font-medium border border-indigo-400/30">
-                시험 정복 시스템 v2.0
+              <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-bold border border-white/30 backdrop-blur-sm">
+                PREMIUM STRATEGY
               </span>
             </div>
 
@@ -334,10 +349,10 @@ const Dashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* 핵심 키워드 */}
                 {result.keywords && result.keywords.length > 0 && (
-                  <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100">
-                    <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                       <List className="w-5 h-5 text-indigo-600" />
-                      핵심 용어 체크
+                      필수 개념 용어
                     </h4>
                     <div className="space-y-3">
                       {result.keywords.map((kw, idx) => (
@@ -350,18 +365,52 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* 시험 포인트 */}
-                {result.examPoints && result.examPoints.length > 0 && (
-                  <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-100">
-                    <h4 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-amber-600" />
-                      시험 적중 포인트
+                {/* 전문가 비책 섹션 */}
+                {result.expertTips && result.expertTips.length > 0 && (
+                  <div className="bg-indigo-600 p-6 rounded-2xl border border-indigo-500 shadow-xl shadow-indigo-100">
+                    <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-indigo-200" />
+                      전문가의 실전 비책
                     </h4>
-                    <div className="space-y-2">
-                      {result.examPoints?.map((point, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-sm text-slate-700 font-medium">
-                          <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                          {typeof point === 'string' ? point : (typeof point === 'object' && point != null && 'text' in point ? (point as any).text : JSON.stringify(point))}
+                    <div className="space-y-3">
+                      {result.expertTips.map((tip, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm text-indigo-50 font-medium">
+                          <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] text-white">
+                            {idx + 1}
+                          </div>
+                          {tip}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 시간 관리 & 함정 알림 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                {result.timeManagement && (
+                  <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                    <h4 className="text-lg font-bold text-emerald-900 mb-4 flex items-center gap-2">
+                      <RotateCcw className="w-5 h-5 text-emerald-600" />
+                      실전 시간 배분 전략
+                    </h4>
+                    <p className="text-sm text-emerald-800 leading-relaxed font-medium">
+                      {result.timeManagement}
+                    </p>
+                  </div>
+                )}
+
+                {result.trapAlerts && result.trapAlerts.length > 0 && (
+                  <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
+                    <h4 className="text-lg font-bold text-rose-900 mb-4 flex items-center gap-2">
+                      <MessageCircle className="w-5 h-5 text-rose-600" />
+                      빈출 함정 알림
+                    </h4>
+                    <div className="space-y-3">
+                      {result.trapAlerts.map((trap, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm text-rose-800 font-medium">
+                          <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                          {trap}
                         </div>
                       ))}
                     </div>
@@ -519,6 +568,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminCollect />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/config"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminConfig />
             </ProtectedRoute>
           }
         />
