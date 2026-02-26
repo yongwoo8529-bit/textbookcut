@@ -27,22 +27,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
     const userRef = useRef<User | null>(null);
 
+    // 공통 로딩 종료 함수 (타임아웃 보호 포함)
+    const stopLoading = () => {
+        setLoading(false);
+    };
+
     const fetchProfile = async (userId: string, userObj?: User | null) => {
         try {
-            // 메타데이터에서 닉네임 먼저 시도 (가장 빠름)
             const metaNickname = userObj?.user_metadata?.nickname;
-
             const { data, error } = await supabase
                 .from('profiles')
                 .select('role, nickname')
                 .eq('id', userId)
                 .single();
 
-            // 특정 이메일 또는 닉네임 "yongwoo"는 관리자 권한
             const isHardcodedAdmin = userObj?.email === 'yongwoo8529@gmail.com' || data?.nickname === 'yongwoo' || metaNickname === 'yongwoo';
             const fetchedRole = isHardcodedAdmin ? 'admin' : (data?.role ?? 'user');
-
-            // 닉네임 우선순위: DB > 메타데이터 > 이메일 앞부분
             const fetchedNickname = data?.nickname || metaNickname || (userObj?.email ? userObj.email.split('@')[0] : 'User');
 
             roleRef.current = fetchedRole;
@@ -56,18 +56,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('[Auth] Profile fetch failed:', e);
             const savedNickname = localStorage.getItem('user-nickname') || 'User';
             setNickname(savedNickname);
-            return {
-                role: roleRef.current || 'user',
-                nickname: savedNickname
-            };
+            return { role: roleRef.current || 'user', nickname: savedNickname };
         }
     };
 
     useEffect(() => {
-        // 강력한 세이프티 타이머: 어떤 경우에도 5초 뒤에는 로딩을 강제 종료
-        const safetyTimer = setTimeout(() => {
-            console.warn('[Auth] Safety timeout reached. Forcing loading to false.');
-            setLoading(false);
+        // 1. 초기 로딩 보호 타이머
+        const initialSafetyTimer = setTimeout(() => {
+            console.warn('[Auth] Initial safety timeout. Forcing loading false.');
+            stopLoading();
         }, 5000);
 
         const initAuth = async () => {
@@ -78,9 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 userRef.current = currentUser;
 
                 if (currentUser) {
-                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser);
-                    setRole(userRole);
-                    setNickname(userNickname);
+                    await fetchProfile(currentUser.id, currentUser);
                 } else {
                     setRole(null);
                     setNickname(null);
@@ -89,12 +84,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     localStorage.removeItem('user-nickname');
                 }
             } catch (err) {
-                console.error('[Auth] Session init error:', err);
+                console.error('[Auth] initAuth error:', err);
             } finally {
-                if (userRef.current === null) {
-                    setLoading(false); // 유저가 없을 때만 여기서 종료
-                }
-                clearTimeout(safetyTimer);
+                stopLoading();
+                clearTimeout(initialSafetyTimer);
             }
         };
 
@@ -110,45 +103,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 roleRef.current = null;
                 localStorage.removeItem('user-role');
                 localStorage.removeItem('user-nickname');
-                setLoading(false);
+                stopLoading();
                 return;
             }
 
-            if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && userRef.current?.id === currentUser?.id)) {
-                return;
-            }
+            if (event === 'TOKEN_REFRESHED') return;
 
             setLoading(true);
+            const actionTimer = setTimeout(() => stopLoading(), 5000); // 상태 변경 시 5초 보호
+
             setUser(currentUser);
             userRef.current = currentUser;
 
             try {
                 if (currentUser) {
-                    const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser);
-                    setRole(userRole);
-                    setNickname(userNickname);
+                    await fetchProfile(currentUser.id, currentUser);
                 } else {
                     setRole(null);
                     setNickname(null);
-                    roleRef.current = null;
-                    localStorage.removeItem('user-role');
-                    localStorage.removeItem('user-nickname');
                 }
             } finally {
-                setLoading(false);
+                stopLoading();
+                clearTimeout(actionTimer);
             }
         });
 
         return () => {
             subscription.unsubscribe();
-            clearTimeout(safetyTimer);
+            clearTimeout(initialSafetyTimer);
         };
     }, []);
 
     const signOut = async () => {
+        const signoutTimer = setTimeout(() => {
+            console.warn('[Auth] SignOut hang detected. Forcing UI reset.');
+            window.location.href = '/';
+        }, 4000);
+
         try {
-            setLoading(true); // 로그아웃 시작 시 로딩 표시
+            setLoading(true);
             await supabase.auth.signOut();
+
             setUser(null);
             setRole(null);
             setNickname(null);
@@ -157,18 +152,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem('user-role');
             localStorage.removeItem('user-nickname');
 
-            // 세션 스토리지 플래그는 유지 (무한 루프 방지)
-
             if (window.location.pathname !== '/') {
                 window.location.href = '/';
-            } else {
-                setLoading(false); // 홈이면 상태만 업데이트
             }
         } catch (error) {
-            console.error('[Auth] Sign out error:', error);
+            console.error('[Auth] signOut error:', error);
             window.location.reload();
         } finally {
-            setLoading(false);
+            clearTimeout(signoutTimer);
+            stopLoading();
         }
     };
 
