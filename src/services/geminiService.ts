@@ -209,10 +209,13 @@ export const getStudyGuide = async (
 
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35000); // 35초 타임아웃
+
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY} `,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -224,12 +227,15 @@ export const getStudyGuide = async (
         response_format: { type: "json_object" },
         temperature: 0.3,
         max_tokens: 2500
-      })
+      }),
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || "GROQ_API_ERROR");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `HTTP_${response.status}`);
     }
 
     const result = await response.json();
@@ -272,18 +278,24 @@ export const createStudyChat = (context: string) => {
     sendMessage: async ({ message }: { message: string }) => {
       history.push({ role: "user", content: message });
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 채팅은 20초
+
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${GROQ_API_KEY} `,
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
           messages: history,
           temperature: 0.7
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error("GROQ_CHAT_ERROR");

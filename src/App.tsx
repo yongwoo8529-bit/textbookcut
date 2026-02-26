@@ -539,17 +539,23 @@ const AppContent: React.FC = () => {
 
   // --- [요구사항] 링크 접속 시(첫 진입) 자동 로그아웃 로직 ---
   useEffect(() => {
+    // 로딩 중이거나 이미 체크했다면 중단
     if (loading) return;
 
-    // 현재 탭 세션에서 한 번이라도 체크했는지 확인
     const entryChecked = sessionStorage.getItem('textbookcut_entry_checked');
+    if (entryChecked) return;
+
     const isRoot = window.location.pathname === '/';
 
-    if (isRoot && !entryChecked) {
+    if (isRoot) {
       if (user) {
         console.log('AUTO-LOGOUT 실행: 링크 접속 첫 진입 감지 -> 로그아웃 실행');
+        // 로컬 데이터도 확실히 비움
+        localStorage.removeItem('user-role');
+        localStorage.removeItem('user-nickname');
         signOut();
       }
+      // 로그아웃 시도 후(또는 유저가 없더라도) 체크 완료 표시
       sessionStorage.setItem('textbookcut_entry_checked', 'true');
     }
   }, [loading, user, signOut]);
