@@ -91,8 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (err) {
                 console.error('[Auth] Session init error:', err);
             } finally {
-                setLoading(false);
-                clearTimeout(safetyTimer); // 정상 완료 시 타이머 해제
+                if (userRef.current === null) {
+                    setLoading(false); // 유저가 없을 때만 여기서 종료
+                }
+                clearTimeout(safetyTimer);
             }
         };
 
@@ -145,17 +147,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = async () => {
         try {
+            setLoading(true); // 로그아웃 시작 시 로딩 표시
             await supabase.auth.signOut();
             setUser(null);
             setRole(null);
             setNickname(null);
             roleRef.current = null;
+            userRef.current = null;
+            localStorage.removeItem('user-role');
+            localStorage.removeItem('user-nickname');
+
+            // 세션 스토리지 플래그는 유지 (무한 루프 방지)
+
             if (window.location.pathname !== '/') {
                 window.location.href = '/';
+            } else {
+                setLoading(false); // 홈이면 상태만 업데이트
             }
         } catch (error) {
             console.error('[Auth] Sign out error:', error);
             window.location.reload();
+        } finally {
+            setLoading(false);
         }
     };
 
