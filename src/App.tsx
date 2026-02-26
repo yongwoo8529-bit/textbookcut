@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import {
-  BookOpen, Sparkles, Loader2, ArrowRight, GraduationCap, Send,
-  MessageCircle, Building2, RotateCcw, CheckCircle2, BadgeCheck, List,
-  LogIn, UserPlus, LogOut, Database, User as UserIcon, Book, Settings
+  BookOpen, Sparkles, Loader2, GraduationCap, Send,
+  MessageCircle, RotateCcw, CheckCircle2, BadgeCheck, List,
+  LogIn, UserPlus, LogOut, Database, User as UserIcon, Settings
 } from 'lucide-react';
 import { getStudyGuide, createStudyChat } from './services/geminiService';
 import { SearchResult } from './types';
@@ -170,7 +170,16 @@ const LandingPage: React.FC = () => {
   };
 
   if (import.meta.env.DEV) {
-    console.log('DEBUG: LandingPage rendered, user:', user ? user.email : 'null');
+    console.log('DEBUG: LandingPage rendered, user:', user ? user.email : 'null', 'authLoading:', authLoading);
+  }
+
+  // 0. Global Loading (handled by AppContent, but here as a secondary guard)
+  if (authLoading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+      </div>
+    );
   }
 
   // 1. Guest View (Not logged in)

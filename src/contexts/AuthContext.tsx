@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [nickname, setNickname] = useState<string | null>(localStorage.getItem('user-nickname'));
     const [loading, setLoading] = useState(true);
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
+    const userRef = useRef<User | null>(null);
 
     const fetchProfile = async (userId: string, userObj?: User | null) => {
         try {
@@ -72,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const { data: { session } } = await supabase.auth.getSession();
                 const currentUser = session?.user ?? null;
                 setUser(currentUser);
+                userRef.current = currentUser;
 
                 if (currentUser) {
                     const { role: userRole, nickname: userNickname } = await fetchProfile(currentUser.id, currentUser);
@@ -107,12 +109,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return;
             }
 
-            if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && user?.id === currentUser?.id)) {
+            if (event === 'TOKEN_REFRESHED' || (event === 'USER_UPDATED' && userRef.current?.id === currentUser?.id)) {
                 return;
             }
 
             setLoading(true);
             setUser(currentUser);
+            userRef.current = currentUser;
 
             try {
                 if (currentUser) {
