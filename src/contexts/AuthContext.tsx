@@ -27,15 +27,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleRef = useRef<string | null>(localStorage.getItem('user-role'));
     const userRef = useRef<User | null>(null);
 
-    // 공통 로딩 종료 함수 (타임아웃 보호 포함)
-    const stopLoading = () => {
-        setLoading(false);
-    };
+    const stopLoading = () => setLoading(false);
 
     const fetchProfile = async (userId: string, userObj?: User | null) => {
         try {
             const metaNickname = userObj?.user_metadata?.nickname;
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('profiles')
                 .select('role, nickname')
                 .eq('id', userId)
@@ -50,22 +47,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('user-nickname', fetchedNickname);
             setRole(fetchedRole);
             setNickname(fetchedNickname);
-
             return { role: fetchedRole, nickname: fetchedNickname };
         } catch (e) {
-            console.error('[Auth] Profile fetch failed:', e);
-            const savedNickname = localStorage.getItem('user-nickname') || 'User';
-            setNickname(savedNickname);
-            return { role: roleRef.current || 'user', nickname: savedNickname };
+            console.error('[Auth] Profile fetch background error:', e);
+            return null;
         }
     };
 
     useEffect(() => {
-        // 1. 초기 로딩 보호 타이머
-        const initialSafetyTimer = setTimeout(() => {
-            console.warn('[Auth] Initial safety timeout. Forcing loading false.');
+        const safetyTimer = setTimeout(() => {
+            console.warn('[Auth] Performance safety trigger.');
             stopLoading();
-        }, 5000);
+        }, 2500);
 
         const initAuth = async () => {
             try {
@@ -74,20 +67,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentUser);
                 userRef.current = currentUser;
 
+                // 세션 확인 즉시 로딩 종료 (비차단형)
+                stopLoading();
+                clearTimeout(safetyTimer);
+
                 if (currentUser) {
-                    await fetchProfile(currentUser.id, currentUser);
-                } else {
-                    setRole(null);
-                    setNickname(null);
-                    roleRef.current = null;
-                    localStorage.removeItem('user-role');
-                    localStorage.removeItem('user-nickname');
+                    // 프로필은 백그라운드에서 로드
+                    fetchProfile(currentUser.id, currentUser);
                 }
             } catch (err) {
-                console.error('[Auth] initAuth error:', err);
-            } finally {
+                console.error('[Auth] Init error:', err);
                 stopLoading();
-                clearTimeout(initialSafetyTimer);
             }
         };
 
@@ -97,10 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const currentUser = session?.user ?? null;
 
             if (event === 'SIGNED_OUT') {
-                setUser(null);
-                setRole(null);
-                setNickname(null);
-                roleRef.current = null;
+                setUser(null); setRole(null); setNickname(null); roleRef.current = null;
                 localStorage.removeItem('user-role');
                 localStorage.removeItem('user-nickname');
                 stopLoading();
@@ -109,58 +96,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (event === 'TOKEN_REFRESHED') return;
 
-            setLoading(true);
-            const actionTimer = setTimeout(() => stopLoading(), 5000); // 상태 변경 시 5초 보호
-
-            setUser(currentUser);
-            userRef.current = currentUser;
-
-            try {
-                if (currentUser) {
-                    await fetchProfile(currentUser.id, currentUser);
-                } else {
-                    setRole(null);
-                    setNickname(null);
-                }
-            } finally {
+            if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                setUser(currentUser);
+                userRef.current = currentUser;
+                if (currentUser) fetchProfile(currentUser.id, currentUser);
                 stopLoading();
-                clearTimeout(actionTimer);
             }
         });
 
         return () => {
             subscription.unsubscribe();
-            clearTimeout(initialSafetyTimer);
+            clearTimeout(safetyTimer);
         };
     }, []);
 
     const signOut = async () => {
-        const signoutTimer = setTimeout(() => {
-            console.warn('[Auth] SignOut hang detected. Forcing UI reset.');
-            window.location.href = '/';
-        }, 4000);
-
         try {
-            setLoading(true);
+            // 서버 응답 기다리지 않고 로컬 즉시 파괴
+            setUser(null); setRole(null); setNickname(null);
+            localStorage.clear(); // 전체 클리어로 확실히 제거
+
             await supabase.auth.signOut();
-
-            setUser(null);
-            setRole(null);
-            setNickname(null);
-            roleRef.current = null;
-            userRef.current = null;
-            localStorage.removeItem('user-role');
-            localStorage.removeItem('user-nickname');
-
-            if (window.location.pathname !== '/') {
-                window.location.href = '/';
-            }
+            window.location.href = '/';
         } catch (error) {
-            console.error('[Auth] signOut error:', error);
-            window.location.reload();
-        } finally {
-            clearTimeout(signoutTimer);
-            stopLoading();
+            console.error('[Auth] Hard signOut error:', error);
+            window.location.href = '/';
         }
     };
 
