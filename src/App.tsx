@@ -93,13 +93,6 @@ const Navbar: React.FC = () => {
 };
 const LandingPage: React.FC = () => {
   const { user, role, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (user && role === 'admin') {
-      navigate('/admin/collect', { replace: true });
-    }
-  }, [user, role, navigate]);
 
   if (import.meta.env.DEV) {
     console.log('DEBUG: LandingPage rendered, user:', user ? user.email : 'null');
