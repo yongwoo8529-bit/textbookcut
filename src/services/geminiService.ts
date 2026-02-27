@@ -134,18 +134,14 @@ export const getStudyGuide = async (
         .select('*')
         .eq('subject', subject)
         .order('title', { ascending: true })
-        .limit(100);
+        .limit(45);
 
       if (conceptError) {
         console.error('Concept data fetch error:', conceptError);
       } else if (conceptData && conceptData.length > 0) {
-        let formattedText = `=== [국어] 마스터 개념 데이터베이스 (카테고리별 분류 필요) ===\n\n`;
+        let formattedText = `=== [국어] 개념 DB (총 ${conceptData.length}개) ===\n`;
         conceptData.forEach(item => {
-          formattedText += `
-[개념명] ${item.title}
-[학술적 정의] ${item.description}
-[핵심 용어] ${item.key_terms}
----`;
+          formattedText += `제목:${item.title}|내용:${item.description.slice(0, 400)}|용어:${item.key_terms}\n---\n`;
         });
         textbookContext = formattedText;
         console.log(`[RAG] Loaded ${conceptData.length} core concepts for Korean.`);
