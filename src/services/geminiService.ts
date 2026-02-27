@@ -141,8 +141,8 @@ export const getStudyGuide = async (
       } else if (conceptData && conceptData.length > 0) {
         let formattedText = `=== [국어] 개념 DB (총 ${conceptData.length}개) ===\n`;
         conceptData.forEach(item => {
-          // 핵심 용어와 제목 위주로 압축 (설명은 AI가 이미 알고 있거나 제목/키워드로 유추하도록 최소화)
-          formattedText += `T:${item.title}|K:${item.key_terms}|D:${item.description.slice(0, 150)}...\n`;
+          // 제목 위주로 보내고 설명은 아주 조금만 (AI 지식 활용 유도)
+          formattedText += `[${item.title}] ${item.description.slice(0, 40)}...\n`;
         });
         textbookContext = formattedText;
         console.log(`[RAG] Loaded ${conceptData.length} core concepts for Korean.`);
@@ -248,7 +248,7 @@ export const getStudyGuide = async (
         ],
         response_format: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 2500
+        max_tokens: 1800
       }),
       signal: controller.signal
     });
