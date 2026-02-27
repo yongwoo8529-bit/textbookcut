@@ -149,20 +149,29 @@ export const getStudyGuide = async (
           '음운': ['음절', '자음/모음', '음운 변동', '교체', '탈락', '첨가', '축약']
         };
 
-        let formattedText = `=== [국어] 개념 DB (총 ${conceptData.length}개) ===\n`;
+        const grouped: Record<string, string[]> = {};
+        Object.keys(categories).forEach(cat => grouped[cat] = []);
+        grouped['기타'] = [];
+
         conceptData.forEach(item => {
           let targetCat = "기타";
-          for (const [cat, items] of Object.entries(categories)) {
-            if (items.includes(item.title)) {
+          for (const [cat, titles] of Object.entries(categories)) {
+            if (titles.includes(item.title)) {
               targetCat = cat;
               break;
             }
           }
-          // [중요] 말줄임표(...)를 프롬프트에서 제거하여 AI가 따라하지 않게 함
-          formattedText += `[범주:${targetCat}] 명칭:${item.title} | 단서:${item.description.slice(0, 60)}\n`;
+          grouped[targetCat].push(`- ${item.title}: ${item.description.slice(0, 50)}`);
         });
+
+        let formattedText = `=== [국어] 핵심 개념 데이터 (범주별 그룹화) ===\n`;
+        for (const [cat, lines] of Object.entries(grouped)) {
+          if (lines.length > 0) {
+            formattedText += `\n[${cat} 범주]\n${lines.join('\n')}\n`;
+          }
+        }
         textbookContext = formattedText;
-        console.log(`[RAG] Loaded ${conceptData.length} core concepts with category tagging.`);
+        console.log(`[RAG] Loaded ${conceptData.length} core concepts (Pre-grouped).`);
       }
     } else {
       // 타 과목은 기존 기출 분석 데이터 사용
@@ -200,11 +209,11 @@ export const getStudyGuide = async (
         당신은 대한민국 최고의 '국어 학습 개념 체계화 전문가'입니다. 
         
         [핵심 원칙]
-        1. **100% 누락 없는 망라**: 전달된 DB 내의 모든(EVERY) 개념을 반드시 해당 범주(Category)에 포함하십시오.
-        2. **압축 데이터의 전문적 복원**: 입력의 '단서'가 짧더라도 당신의 국어 전문 지식을 총동원하십시오. 특히 '심상'이나 '비유' 같은 시적 개념을 설명할 때 '내러티브' 같은 소설적 용어를 지양하고, **감각적 이미지, 형상화, 정서 전달** 등 시 문학 고유의 용어를 사용하여 정교하게 설명하십시오.
-        3. **완벽한 카테고리 맵핑**: 입력 데이터의 [범주:XXX] 정보를 **절대적으로 준수**하여 개념을 배치하십시오.
-        4. **완전한 문장 종결 (NO TRUNCATION)**: 모든 설명은 반드시 **"~입니다.", "~하는 현상입니다."**와 같이 완벽하게 끝맺음하십시오. 절대로 문장 끝에 '...'을 붙이지 마십시오.
-        5. **분량 최적화 (Concise)**: 각 개념 설명은 핵심 위주로 **3-4문장**으로 작성하되, 문장은 완전해야 합니다.
+        1. **범주 분류 절대 엄수**: DB 내용이 이미 [범주]별로 그룹화되어 있습니다. 해당 그룹에 있는 개념은 반드시 **그 범주에만** 포함시키십시오. (예: '품사' 그룹의 '감탄사'를 절대 '시' 범주에 넣지 말 것)
+        2. **100% 누락 없는 망라**: 모든 개념을 하나도 빠짐없이 가이드에 포함하십시오.
+        3. **완벽한 문장 마침**: 모든 설명은 반드시 **"~입니다.", "~하는 현상입니다."**와 같이 완벽한 문장으로 마무리하십시오. 절대로 끝에 '...'을 붙이거나 내용을 잘라내지 마십시오.
+        4. **핵심 위주의 전문적 복원**: 제공된 짧은 '단서'를 바탕으로 국어 전문 지식을 동원하여 2-3문장의 정교한 학술적 설명을 복원하십시오.
+        5. **분량 조절**: 56개 전 개념을 다루어야 하므로, 각 설명은 간결하되 문장이 끊기지 않도록 주의하십시오.
     `;
 
   const userPrompt = `
@@ -214,10 +223,9 @@ export const getStudyGuide = async (
         ${textbookContext}
 
         [작성 지침]
-        1. **범주별 그룹화**: [시 / 형태소 / 품사 / 문법 / 문장구조 / 음운] 순서로 대단원을 나누어 구성하십시오.
-        2. **데이터 준수**: 각 개념의 [범주] 태그를 확인하여 정확한 위치에 배치하십시오.
-        3. **문장 완성**: 모든 설명은 마침표(.)로 끝나는 완전한 문장이어야 합니다. ('...' 사용 절대 금지)
-        4. **전체 포함**: 제공된 모든 개념 명칭을 가이드에 포함하십시오.
+        1. **범주 그룹화**: DB에 정의된 [시 / 형태소 / 품사 / 문법 / 문장구조 / 음운] 순서대로 대단원을 구성하십시오.
+        2. **문장 완성**: 모든 개념 설명은 마침표(.)로 명확히 끝나는 완전한 형태여야 합니다.
+        3. **실수 방지**: '감탄사', '관계언' 등은 품사 범주임을 명심하고, 해당 영역에 정확히 배치하십시오.
 
         반드시 다음 JSON 형식을 유지하십시오:
         {
@@ -259,8 +267,8 @@ export const getStudyGuide = async (
           { role: "user", content: userPrompt }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 2000
+        temperature: 0.1,
+        max_tokens: 3000
       }),
       signal: controller.signal
     });
