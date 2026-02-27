@@ -141,7 +141,8 @@ export const getStudyGuide = async (
       } else if (conceptData && conceptData.length > 0) {
         let formattedText = `=== [국어] 개념 DB (총 ${conceptData.length}개) ===\n`;
         conceptData.forEach(item => {
-          formattedText += `제목:${item.title}|내용:${item.description}|용어:${item.key_terms}\n---\n`;
+          // 핵심 용어와 제목 위주로 압축 (설명은 AI가 이미 알고 있거나 제목/키워드로 유추하도록 최소화)
+          formattedText += `T:${item.title}|K:${item.key_terms}|D:${item.description.slice(0, 150)}...\n`;
         });
         textbookContext = formattedText;
         console.log(`[RAG] Loaded ${conceptData.length} core concepts for Korean.`);
@@ -182,10 +183,10 @@ export const getStudyGuide = async (
         당신은 대한민국 최고의 '국어 학습 개념 체계화 전문가'입니다. 
         
         [핵심 원칙]
-        1. **100% 누락 없는 망라**: 전달된 모든(EVERY) 개념을 반드시 가이드에 포함하십시오. 단 하나라도 누락되면 안 됩니다.
-        2. **카테고리별 분류**: [시, 형태소, 품사, 문법, 문장구조, 음운] 범주로 모든 개념을 정확히 분류하십시오. (데이터에 범주 정보가 포함되어 있음)
-        3. **내용의 차별성 및 유일성**: 각 개념은 고유한 학술적 정의를 가져야 합니다. "음운 변동은 발음 시 일어나는 변화입니다"와 같은 범용적인 문장을 여러 개념에 반복 사용하지 마십시오.
-        4. **체계적 문어체**: "~입니다", "~함" 등으로 끝나는 전문적인 어조를 유지하십시오.
+        1. **100% 누락 없는 망라**: 전달된 DB 내의 모든(EVERY) 개념을 반드시 가이드에 포함하십시오. 단 하나라도 누락되면 안 됩니다.
+        2. **압축 데이터 복원**: 입력을 위해 압축된 데이터(D:...)를 바탕으로, 당신의 풍부한 전문 지식을 활용하여 고품질의 학술적 설명을 복원/확장하십시오.
+        3. **카테고리별 분류**: [시, 형태소, 품사, 문법, 문장구조, 음운] 범주로 모든 개념을 정확히 분류하십시오.
+        4. **내용의 차별성**: 각 개념은 고유한 핵심 특성을 중심으로 설명하며, 반복적인 템플릿 문장을 지양하십시오.
     `;
 
   const userPrompt = `
