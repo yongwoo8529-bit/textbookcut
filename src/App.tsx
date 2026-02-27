@@ -338,7 +338,7 @@ const LandingPage: React.FC = () => {
                             {sentence.isImportant && <span className="inline-block mr-2 text-indigo-500">🔥</span>}
                             <div
                               className="inline"
-                              dangerouslySetInnerHTML={{ __html: sentence.text.replace(/\n/g, '<br />') }}
+                              dangerouslySetInnerHTML={{ __html: (sentence.text || '').replace(/\n/g, '<br />') }}
                             />
                           </div>
                         ))}
