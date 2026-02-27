@@ -459,7 +459,7 @@ const LandingPage: React.FC = () => {
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'}
               `}>
-                    {msg.role === 'model' && msg.text.includes('최다 빈출') && (
+                    {msg.role === 'model' && (msg.text || '').includes('최다 빈출') && (
                       <div className="flex items-center gap-1 mb-2">
                         <span className="flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-md text-[10px] font-black border border-red-100 uppercase tracking-tighter shadow-sm">
                           🔥 최다 빈출
@@ -467,7 +467,7 @@ const LandingPage: React.FC = () => {
                       </div>
                     )}
                     <div dangerouslySetInnerHTML={{
-                      __html: msg.text.replace(/\n/g, '<br />')
+                      __html: (msg.text || '').replace(/\n/g, '<br />')
                     }} />
                   </div>
                 </div>
