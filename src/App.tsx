@@ -316,10 +316,10 @@ const LandingPage: React.FC = () => {
             <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-8 py-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BadgeCheck className="text-indigo-200 w-6 h-6" />
-                <h3 className="text-xl font-bold text-white">5개년(2021-2025) 실전 전략 가이드</h3>
+                <h3 className="text-xl font-bold text-white">핵심 개념 정밀 분석 마스터 가이드</h3>
               </div>
               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-bold border border-white/30 backdrop-blur-sm">
-                PREMIUM STRATEGY
+                CONCEPT MASTER
               </span>
             </div>
 

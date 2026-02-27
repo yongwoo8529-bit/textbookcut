@@ -124,86 +124,105 @@ export const getStudyGuide = async (
 ): Promise<SearchResult> => {
   const studentLevel = `${schoolLevel} ${grade}`;
 
-  // 1. DB에서 연도별/문항별 상세 분석 데이터 조회 (RAG)
+  // 1. DB에서 데이터 조회 (RAG)
   let textbookContext = "";
   try {
-    const { data: granularData, error: granularError } = await supabase
-      .from('mock_questions')
-      .select('*')
-      .eq('subject', subject)
-      .order('year', { ascending: false })
-      .order('question_num', { ascending: true })
-      .limit(40); // 컨텍스트 크기 제한
+    if (subject === '국어') {
+      // 국어는 직접 입력한 핵심 개념 DB(must_know_core) 사용
+      const { data: conceptData, error: conceptError } = await supabase
+        .from('must_know_core')
+        .select('*')
+        .eq('subject', subject)
+        .order('created_at', { ascending: false })
+        .limit(30);
 
-    if (granularError) {
-      console.error('Granular data fetch error:', granularError);
-    } else if (granularData && granularData.length > 0) {
-      let formattedText = `=== [${subject}] 5개년(2021-2025) 전 문항 정밀 분석 데이터 ===\n\n`;
-
-      granularData.forEach(item => {
-        formattedText += `
-[${item.year}년 ${item.question_num}번] ${item.title} (중요도: ${item.importance})
-- 선생님의 상세 설명: ${item.concept_explanation}
-- 주의할 함정: ${item.trap_logic}
-- 일타강사 팁: ${item.teacher_tip}
+      if (conceptError) {
+        console.error('Concept data fetch error:', conceptError);
+      } else if (conceptData && conceptData.length > 0) {
+        let formattedText = `=== [${subject}] 핵심 개념 데이터베이스 ===\n\n`;
+        conceptData.forEach(item => {
+          formattedText += `
+[개념명] ${item.title} (중요도: ${item.importance})
+- 정의/설명: ${item.description}
+- 핵심 용어: ${item.key_terms}
 ---`;
-      });
-      textbookContext = formattedText;
-      console.log(`[RAG] Loaded ${granularData.length} granular question analyses.`);
+        });
+        textbookContext = formattedText;
+        console.log(`[RAG] Loaded ${conceptData.length} core concepts for Korean.`);
+      }
+    } else {
+      // 타 과목은 기존 기출 분석 데이터 사용
+      const { data: granularData, error: granularError } = await supabase
+        .from('mock_questions')
+        .select('*')
+        .eq('subject', subject)
+        .order('year', { ascending: false })
+        .order('question_num', { ascending: true })
+        .limit(40);
+
+      if (granularError) {
+        console.error('Granular data fetch error:', granularError);
+      } else if (granularData && granularData.length > 0) {
+        let formattedText = `=== [${subject}] 기출 분석 데이터베이스 ===\n\n`;
+        granularData.forEach(item => {
+          formattedText += `
+[${item.year}년 ${item.question_num}번] ${item.title} (중요도: ${item.importance})
+- 해설: ${item.concept_explanation}
+- 함정: ${item.trap_logic}
+- 팁: ${item.teacher_tip}
+---`;
+        });
+        textbookContext = formattedText;
+        console.log(`[RAG] Loaded ${granularData.length} granular question analyses.`);
+      }
     }
   } catch (err) {
-    console.warn("Granular data retrieval failed:", err);
+    console.warn("Data retrieval failed:", err);
   }
 
   const savedSystemPrompt = typeof window !== 'undefined' ? localStorage.getItem('admin_system_prompt') : null;
 
   const systemPrompt = savedSystemPrompt || `
-        당신은 대한민국 최고의 '모의고사 전 문항 개념 마스터' 일타 강사입니다. 
+        당신은 대한민국 최고의 '학습 개념 체계화 전문가'입니다. 
         
-        [절대 규칙]
-        1. **100% 데이터 기반**: 제공된 [데이터베이스 분석 내용]에 있는 구체적인 문항(연도, 번호)과 개념만을 설명하세요. 
-        2. **서론 금지**: "문법이란 무엇인가", "학습의 원리" 같은 일반적인 개요나 정의는 절대 쓰지 마세요. 바로 본론(기출 개념 강의)으로 들어가세요.
-        3. **구체적 사례 강조**: DB에 있는 "국물[궁물]", "체언과 조사" 등 구체적인 예시를 활용해 선생님처럼 설명하세요.
-        4. **할루시네이션(환각) 방지**: DB에 없는 내용을 지어내지 마세요. 데이터가 한정되어 있다면, 그 데이터만이라도 깊이 있게 다루세요.
-        5. **외국어 금지**: 한국어로만 상세히 답변하세요. (태국어 등 다른 언어 혼용 절대 금합)
+        [대원칙]
+        1. **학술적/객관적 어조**: "말이야", "거야", "~인 것 같아"와 같은 구어체나 주관적 감정 표현을 일절 배제합니다. "~입니다", "~함", "~임"과 같은 명확한 문어체를 사용합니다.
+        2. **데이터 절대 준수**: 제공된 [데이터베이스 내용]에 근거하여 정보의 정확성을 최우선으로 합니다.
+        3. **군더더기 제거**: "안녕하세요", "준비했어" 등의 인사말이나 서론 없이 바로 개념의 핵심 원리부터 기술합니다.
+        4. **체계적 구성**: 하이퍼텍스트 또는 강의록 형식이 아닌, 사전적이고 분석적인 구조로 설명합니다.
     `;
 
   const userPrompt = `
-        다음은 2021년부터 2025년까지의 '${subject}' 모의고사 실제 기출 데이터입니다.
-        데이터에 있는 **구체적인 개념과 문항**을 바탕으로 "선생님의 개념 정복 강의 노트"를 작성하세요.
+        다음 '${subject}' 핵심 기출/개념 데이터를 바탕으로, 학생이 개념의 본질을 완벽히 이해할 수 있도록 구조화된 "개념 마스터 가이드"를 작성하십시오.
 
-        [데이터베이스 분석 내용]
-        ${textbookContext || '기출 데이터가 부족합니다. 기출 트렌드에 맞는 핵심 개념을 생성하되, 절대 일반적인 정의만 나열하지 마세요.'}
+        [데이터베이스 내용]
+        ${textbookContext || '현재 활용 가능한 정밀 데이터가 부족합니다. 핵심 원리를 기술하되, 데이터에 기반한 구체적 사례를 포함하십시오.'}
 
-        [구성 요청]
-        1. **실전 기출 개념 강의**: DB의 각 연도별 문항을 예시로 들어 개념의 원리를 아주 깊이 있게 설명 (예: "2023년 11번에서는 체언과 조사를 다뤘는데...")
-        2. **헷갈리는 포인트 클리닉**: 학생들이 해당 문항에서 가장 많이 낚이는 지점(trap_logic)을 개념적으로 해결
-        3. **암기 및 원리 팁**: 일타 강사만의 개념 암기법(teacher_tip) 전수
-
-        [주의]
-        - "문법이란 언어의 규칙을 다루는..." 식의 뻔한 서술은 삭제하세요.
-        - 같은 문장을 반복하지 마세요.
-        - 데이터가 적다면, 그 하나하나를 더 길고 자세하게 분석하세요.
+        [작성 지침]
+        1. **개념 핵심 원리**: DB에 제시된 각 개념의 정의와 작동 원리를 논리적으로 설명하십시오.
+        2. **오개념 방지**: 해당 개념을 학습할 때 발생하기 쉬운 논리적 함정이나 혼동 포인트를 명시하십시오.
+        3. **실전 적용**: 해당 원리가 실제 지문이나 보기에서 어떠한 원리로 적용되는지 기술하십시오.
+        4. **불필요한 수식어 삭제**: "선생님", "공부해보자" 등 학습과 무관한 모든 표현을 삭제하십시오.
 
         반드시 다음 JSON 형식을 유지하십시오:
         {
           "isValid": true,
           "sections": [
             {
-              "title": "[연도/번호] 핵심 개념명",
+              "title": "개념 범주 및 핵심 명칭",
               "parts": [
                 [
-                  { "text": "선생님의 강의 테마", "isImportant": true },
-                  { "text": "상세한 개념 해설 (DB의 concept_explanation을 확장하여 10문장 이상 작성)...", "isImportant": false }
+                  { "text": "핵심 명제 또는 원리 요약", "isImportant": true },
+                  { "text": "상세한 개념 정의 및 논리적 메커니즘 설명 (10문장 이상 정도로 상세히)...", "isImportant": false }
                 ]
               ]
             }
           ],
-          "keywords": [{ "word": "용어", "meaning": "해당 기출 문항에서의 의미" }],
-          "examPoints": ["기출 포인트 1", "기출 포인트 2"],
-          "expertTips": ["실전 개념 적용 팁"],
-          "timeManagement": "이 문제를 풀 때의 시간 배분",
-          "trapAlerts": ["결정적 오개념 주의점"]
+          "keywords": [{ "word": "용어", "meaning": "학술적 정의" }],
+          "examPoints": ["출제 핵심 포인트 1", "출제 핵심 포인트 2"],
+          "expertTips": ["개념 적용 및 심화 팁"],
+          "timeManagement": "해당 개념 관련 문항 처리 전략",
+          "trapAlerts": ["주의해야 할 논리적 함정"]
         }
     `;
 
