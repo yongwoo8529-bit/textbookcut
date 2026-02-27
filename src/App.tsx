@@ -123,11 +123,12 @@ const LandingPage: React.FC = () => {
         ✨ 3모 고득점 전략 가이드 준비 중
       </div>
       <h2 className="text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
-        실전 대비: 5개년(2021-2025) 초정밀 전략 분석
+        {selectedSubject === '국어' ? '핵심 개념 정밀 분석 마스터 가이드' : '실전 대비: 과목별 초정밀 전략 분석'}
       </h2>
       <p className="text-slate-500 text-xl max-w-lg mx-auto mb-10 leading-relaxed">
-        최근 5개년 핵심 트렌드와 전문가의 실전 노하우를 결합하여<br />
-        당신만을 위한 최상의 합격 시나리오를 만나보세요.
+        {selectedSubject === '국어'
+          ? '체계적으로 정리된 핵심 개념과 전문가의 깊이 있는 분석을 통해\n당신만의 완벽한 개념 체계를 구축해보세요.'
+          : '최근 핵심 트렌드와 전문가의 실전 노하우를 결합하여\n당신만을 위한 최상의 합격 시나리오를 만나보세요.'}
       </p>
     </div>
   );
@@ -280,12 +281,12 @@ const LandingPage: React.FC = () => {
               {loading ? (
                 <>
                   <Loader2 className="w-6 h-6 animate-spin" />
-                  <span>기출 데이터 분석 중...</span>
+                  <span>{selectedSubject === '국어' ? '핵심 개념 분석 및 체계화 중...' : '기출 데이터 분석 중...'}</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  <span>기출 분석 요약 생성하기</span>
+                  <span>{selectedSubject === '국어' ? '개념 마스터 가이드 생성하기' : '기출 분석 요약 생성하기'}</span>
                 </>
               )}
             </button>

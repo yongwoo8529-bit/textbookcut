@@ -133,18 +133,18 @@ export const getStudyGuide = async (
         .from('must_know_core')
         .select('*')
         .eq('subject', subject)
-        .order('created_at', { ascending: false })
-        .limit(30);
+        .order('title', { ascending: true })
+        .limit(100);
 
       if (conceptError) {
         console.error('Concept data fetch error:', conceptError);
       } else if (conceptData && conceptData.length > 0) {
-        let formattedText = `=== [${subject}] 핵심 개념 데이터베이스 ===\n\n`;
+        let formattedText = `=== [국어] 마스터 개념 데이터베이스 (카테고리별 분류 필요) ===\n\n`;
         conceptData.forEach(item => {
           formattedText += `
-[개념명] ${item.title} (중요도: ${item.importance})
-- 정의/설명: ${item.description}
-- 핵심 용어: ${item.key_terms}
+[개념명] ${item.title}
+[학술적 정의] ${item.description}
+[핵심 용어] ${item.key_terms}
 ---`;
         });
         textbookContext = formattedText;
@@ -183,45 +183,45 @@ export const getStudyGuide = async (
   const savedSystemPrompt = typeof window !== 'undefined' ? localStorage.getItem('admin_system_prompt') : null;
 
   const systemPrompt = savedSystemPrompt || `
-        당신은 대한민국 최고의 '학습 개념 체계화 전문가'입니다. 
+        당신은 대한민국 최고의 '국어 학습 개념 체계화 전문가'입니다. 
         
-        [대원칙]
-        1. **학술적/객관적 어조**: "말이야", "거야", "~인 것 같아"와 같은 구어체나 주관적 감정 표현을 일절 배제합니다. "~입니다", "~함", "~임"과 같은 명확한 문어체를 사용합니다.
-        2. **데이터 절대 준수**: 제공된 [데이터베이스 내용]에 근거하여 정보의 정확성을 최우선으로 합니다.
-        3. **군더더기 제거**: "안녕하세요", "준비했어" 등의 인사말이나 서론 없이 바로 개념의 핵심 원리부터 기술합니다.
-        4. **체계적 구성**: 하이퍼텍스트 또는 강의록 형식이 아닌, 사전적이고 분석적인 구조로 설명합니다.
+        [핵심 원칙]
+        1. **완전한 카테고리화**: 제공된 데이터를 바탕으로 [시, 형태소, 품사, 문법, 문장구조, 음운] 등의 카테고리를 설정하여 모든 개념을 누락 없이 분류하십시오.
+        2. **압도적인 상세함**: 각 개념에 대해 DB 내용을 바탕으로 매우 깊이 있고 상세하게 설명하십시오. "길게 해도 된다"는 요청에 따라 충분한 분량을 확보하십시오.
+        3. **연도별/기출 표현 배제**: "2022년 핵심 개념" 또는 "몇 번 문항"과 같은 연도/번호 베이스의 표현을 일절 사용하지 말고, 순수하게 '개념 그 자체'의 정의와 원리에 집중하십시오.
+        4. **전문적 문어체**: "~입니다", "~함" 등으로 끝나는 격식 있는 학술적 어조를 유지하며, 서론/결론의 인사말은 생략합니다.
     `;
 
   const userPrompt = `
-        다음 '${subject}' 핵심 기출/개념 데이터를 바탕으로, 학생이 개념의 본질을 완벽히 이해할 수 있도록 구조화된 "개념 마스터 가이드"를 작성하십시오.
+        다음 국어 개념 데이터를 바탕으로, 모든 개념이 체계적으로 나열된 "국어 개념 마스터 총괄 가이드"를 작성하십시오.
 
         [데이터베이스 내용]
-        ${textbookContext || '현재 활용 가능한 정밀 데이터가 부족합니다. 핵심 원리를 기술하되, 데이터에 기반한 구체적 사례를 포함하십시오.'}
+        ${textbookContext}
 
         [작성 지침]
-        1. **개념 핵심 원리**: DB에 제시된 각 개념의 정의와 작동 원리를 논리적으로 설명하십시오.
-        2. **오개념 방지**: 해당 개념을 학습할 때 발생하기 쉬운 논리적 함정이나 혼동 포인트를 명시하십시오.
-        3. **실전 적용**: 해당 원리가 실제 지문이나 보기에서 어떠한 원리로 적용되는지 기술하십시오.
-        4. **불필요한 수식어 삭제**: "선생님", "공부해보자" 등 학습과 무관한 모든 표현을 삭제하십시오.
+        1. **카테고리 중심 구성**: [시 / 형태소 / 품사 / 문법 / 문장구조 / 음운] 순서로 대단원을 나누어 구성하십시오.
+        2. **개념 정의의 심화**: 각 개념에 대해 정의, 핵심 원리, 그리고 그 개념이 문장에서 어떻게 구체화되는지 매우 상세히 기술하십시오.
+        3. **시각적 가독성**: 명확한 헤더와 불렛 포인트를 사용하여 눈에 잘 띄게 구성하십시오.
+        4. **모든 개념 포함**: 데이터베이스에 포함된 모든 개념명을 제목으로 하여 설명을 나열하십시오.
 
         반드시 다음 JSON 형식을 유지하십시오:
         {
           "isValid": true,
           "sections": [
             {
-              "title": "개념 범주 및 핵심 명칭",
+              "title": "대단원 명칭 (예: 1. 시 부분 문법 개념)",
               "parts": [
                 [
-                  { "text": "핵심 명제 또는 원리 요약", "isImportant": true },
-                  { "text": "상세한 개념 정의 및 논리적 메커니즘 설명 (10문장 이상 정도로 상세히)...", "isImportant": false }
+                  { "text": "[개념 제목]", "isImportant": true },
+                  { "text": "해당 개념의 학술적이고 상세한 설명 (매우 길게 작성 가능)", "isImportant": false }
                 ]
               ]
             }
           ],
-          "keywords": [{ "word": "용어", "meaning": "학술적 정의" }],
-          "examPoints": ["출제 핵심 포인트 1", "출제 핵심 포인트 2"],
-          "expertTips": ["개념 적용 및 심화 팁"],
-          "timeManagement": "해당 개념 관련 문항 처리 전략",
+          "keywords": [{ "word": "핵심용어", "meaning": "용어의 정의" }],
+          "examPoints": ["각 단원별 핵심 판단 기준"],
+          "expertTips": ["개념 간의 논리적 연결성 및 심화 팁"],
+          "timeManagement": "문법/문학 문항 접근 시 사고의 우선순위",
           "trapAlerts": ["주의해야 할 논리적 함정"]
         }
     `;
